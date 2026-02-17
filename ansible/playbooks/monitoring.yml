@@ -1,0 +1,4 @@
+- name: Installer le monitoring
+  hosts: vps
+  roles:
+    - monitoring

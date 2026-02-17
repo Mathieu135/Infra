@@ -1,0 +1,86 @@
+# --- Namespace ---
+- name: Créer le namespace monitoring
+  shell: kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+# --- Helm install ---
+- name: Vérifier si kube-prometheus-stack est installé
+  command: helm status monitoring -n monitoring
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: monitoring_status
+  failed_when: false
+  changed_when: false
+
+- name: Installer kube-prometheus-stack
+  command: >
+    helm install monitoring kube-prometheus-stack
+    --repo https://prometheus-community.github.io/helm-charts
+    --namespace monitoring
+    --set grafana.adminPassword={{ grafana_password }}
+    --set prometheus.prometheusSpec.retention=15d
+    --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=10Gi
+    --set grafana.persistence.enabled=true
+    --set grafana.persistence.size=2Gi
+    --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+    --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false
+    --set alertmanager.enabled=false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: monitoring_status.rc != 0
+
+- name: Upgrader kube-prometheus-stack
+  command: >
+    helm upgrade monitoring kube-prometheus-stack
+    --repo https://prometheus-community.github.io/helm-charts
+    --namespace monitoring
+    --set grafana.adminPassword={{ grafana_password }}
+    --set prometheus.prometheusSpec.retention=15d
+    --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=10Gi
+    --set grafana.persistence.enabled=true
+    --set grafana.persistence.size=2Gi
+    --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+    --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false
+    --set alertmanager.enabled=false
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: monitoring_status.rc == 0
+
+- name: Attendre que Grafana soit prêt
+  command: kubectl -n monitoring rollout status deployment/monitoring-grafana --timeout=180s
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  changed_when: false
+
+# --- Ingress Grafana (TLS terminé ici, HTTP vers le pod) ---
+- name: Appliquer l'Ingress Grafana
+  command: kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  args:
+    stdin: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: grafana
+        namespace: monitoring
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+      spec:
+        ingressClassName: nginx
+        tls:
+          - hosts:
+              - grafana.{{ domain }}
+            secretName: grafana-tls
+        rules:
+          - host: grafana.{{ domain }}
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: monitoring-grafana
+                      port:
+                        number: 80

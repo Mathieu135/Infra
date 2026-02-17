@@ -4,62 +4,41 @@
 
 - k3s fonctionnel (étape 2)
 - cert-manager configuré (étape 3)
-- DNS configuré : `grafana.ton-domaine.com` → IP du serveur
+- DNS : `grafana.matltz.dev` → `91.134.142.175` (A record, DNS only sur Cloudflare)
 
-## Installation via Helm
+## Architecture
 
-Le chart `kube-prometheus-stack` inclut tout : Prometheus, Grafana, Alertmanager, et les dashboards de base.
+Le chart `kube-prometheus-stack` est installé via Ansible (rôle `monitoring`), même pattern que les autres composants. Il inclut :
+
+- **Prometheus** — collecte des métriques (rétention 15 jours, PVC 10Gi)
+- **Grafana** — dashboards (PVC 2Gi, exposé sur `grafana.matltz.dev`)
+- **Node Exporter** — métriques système des nodes
+- **kube-state-metrics** — métriques des objets Kubernetes
+- Alertmanager désactivé (pas configuré pour l'instant)
+
+## Configuration
+
+Les values sont passées en `--set` dans le rôle Ansible (`ansible/roles/monitoring/tasks/main.yml`) :
+
+| Paramètre | Valeur |
+|---|---|
+| `grafana.adminPassword` | Via Ansible Vault (`vault_grafana_password`) |
+| `prometheus.prometheusSpec.retention` | `15d` |
+| `prometheus.prometheusSpec.storageSpec` | PVC 10Gi |
+| `grafana.persistence` | Activée, 2Gi |
+| `serviceMonitorSelectorNilUsesHelmValues` | `false` (scrape tous les namespaces) |
+| `podMonitorSelectorNilUsesHelmValues` | `false` |
+| `alertmanager.enabled` | `false` |
+
+## Déploiement
 
 ```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
+# 1. Ajouter le password Grafana au vault
+ansible-vault edit ansible/inventory/group_vars/all/vault.yml
+# Ajouter : vault_grafana_password: <mot-de-passe>
 
-helm install monitoring prometheus-community/kube-prometheus-stack \
-  --namespace monitoring \
-  --create-namespace \
-  --values kubernetes/monitoring/values.yaml
-```
-
-## Values personnalisées
-
-```yaml
-# kubernetes/monitoring/values.yaml
-grafana:
-  adminPassword: "a-changer-via-sealed-secret"
-
-  ingress:
-    enabled: true
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    hosts:
-      - grafana.ton-domaine.com
-    tls:
-      - secretName: grafana-tls
-        hosts:
-          - grafana.ton-domaine.com
-
-  persistence:
-    enabled: true
-    size: 5Gi
-
-prometheus:
-  prometheusSpec:
-    retention: 30d
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 20Gi
-
-    # Scraper tous les ServiceMonitors dans tous les namespaces
-    serviceMonitorSelectorNilUsesHelmValues: false
-    podMonitorSelectorNilUsesHelmValues: false
-
-alertmanager:
-  enabled: true
-  # Configurer les notifications (email, Slack, etc.) si besoin
+# 2. Déployer
+cd ansible && make monitoring
 ```
 
 ## Exposer les métriques de tes apps
@@ -67,7 +46,6 @@ alertmanager:
 Ajouter un `ServiceMonitor` pour chaque app qui expose des métriques Prometheus :
 
 ```yaml
-# kubernetes/apps/mon-app/service-monitor.yaml
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -83,22 +61,19 @@ spec:
       interval: 30s
 ```
 
-## Dashboards inclus par défaut
+## Dashboards
 
 Le chart installe automatiquement des dashboards pour :
 
 - Cluster health (nodes, pods, resources)
 - Kubernetes API server
 - Workloads (deployments, statefulsets)
-- Networking
+- Node Exporter (CPU, RAM, disk, network)
 - Persistent volumes
 
-## Ajouter des dashboards custom
-
-Via ConfigMap provisionné :
+Pour ajouter un dashboard custom, créer un ConfigMap avec le label `grafana_dashboard: "1"` :
 
 ```yaml
-# kubernetes/monitoring/dashboards/mon-dashboard.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -111,42 +86,21 @@ data:
     { ... JSON du dashboard ... }
 ```
 
-Ou importer depuis Grafana.com par ID dans les values :
-
-```yaml
-grafana:
-  dashboardProviders:
-    dashboardproviders.yaml:
-      apiVersion: 1
-      providers:
-        - name: default
-          folder: ""
-          type: file
-          options:
-            path: /var/lib/grafana/dashboards/default
-  dashboards:
-    default:
-      node-exporter:
-        gnetId: 1860
-        revision: 36
-        datasource: Prometheus
-```
-
 ## Vérification
 
 ```bash
-# Vérifier les pods monitoring
+# Vérifier les pods
 kubectl get pods -n monitoring
 
 # Accéder à Grafana
-# https://grafana.ton-domaine.com
-# User : admin / Password : celui configuré dans les values
+# https://grafana.matltz.dev (admin / <password du vault>)
 
 # Vérifier les targets Prometheus
-# Grafana → Explore → Prometheus → up
+# Grafana → Connections → Data sources → Prometheus → Test
 ```
 
-## Fichiers à créer
+## Fichiers
 
-- `kubernetes/monitoring/values.yaml`
-- `kubernetes/monitoring/dashboards/` — dashboards custom (optionnel)
+- `ansible/roles/monitoring/tasks/main.yml` — rôle Ansible
+- `ansible/playbooks/monitoring.yml` — playbook
+- `ansible/inventory/group_vars/all/vault.yml` — password Grafana (chiffré)

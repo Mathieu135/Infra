@@ -1,5 +1,5 @@
 INVENTORY = inventory/hosts.yml
-PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml playbooks/sealed-secrets.yml
+PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml playbooks/sealed-secrets.yml playbooks/monitoring.yml
 FLAGS =
 RUN = ansible-playbook -i $(INVENTORY)
 
@@ -32,6 +32,12 @@ argocd:
 
 sealed-secrets:
 	$(RUN) playbooks/sealed-secrets.yml $(FLAGS)
+
+monitoring:
+	$(RUN) playbooks/monitoring.yml $(FLAGS)
+
+check-monitoring:
+	$(RUN) playbooks/monitoring.yml --check --diff $(FLAGS)
 
 reset:
 	$(RUN) playbooks/reset.yml $(FLAGS)
