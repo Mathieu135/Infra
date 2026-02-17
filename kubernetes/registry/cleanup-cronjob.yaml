@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: registry-cleanup
+  namespace: registry
+spec:
+  schedule: "0 3 * * 0"  # Chaque dimanche à 3h
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: cleanup
+              image: alpine:3.21
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  apk add --no-cache curl jq
+
+                  REGISTRY="http://registry-docker-registry.registry.svc.cluster.local:5000"
+                  KEEP=5
+
+                  echo "=== Registry cleanup ==="
+
+                  # Lister tous les repos
+                  REPOS=$(curl -s "$REGISTRY/v2/_catalog" | jq -r '.repositories[]')
+
+                  for REPO in $REPOS; do
+                    echo "--- $REPO ---"
+
+                    # Lister les tags
+                    TAGS=$(curl -s "$REGISTRY/v2/$REPO/tags/list" | jq -r '.tags // [] | .[]' | sort)
+                    COUNT=$(echo "$TAGS" | grep -c . || true)
+
+                    if [ "$COUNT" -le "$KEEP" ]; then
+                      echo "  $COUNT tags, rien a supprimer"
+                      continue
+                    fi
+
+                    # Tags a supprimer (les plus anciens, garder latest + les N derniers)
+                    TO_DELETE=$(echo "$TAGS" | grep -v "^latest$" | head -n -$KEEP)
+
+                    for TAG in $TO_DELETE; do
+                      # Recuperer le digest
+                      DIGEST=$(curl -s -I -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+                        "$REGISTRY/v2/$REPO/manifests/$TAG" | grep -i docker-content-digest | awk '{print $2}' | tr -d '\r')
+
+                      if [ -n "$DIGEST" ]; then
+                        curl -s -X DELETE "$REGISTRY/v2/$REPO/manifests/$DIGEST"
+                        echo "  supprime: $TAG ($DIGEST)"
+                      fi
+                    done
+                  done
+
+                  echo "=== Cleanup termine ==="
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "128Mi"
+                  cpu: "200m"

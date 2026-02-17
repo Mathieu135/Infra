@@ -42,17 +42,19 @@
     --namespace registry
     --set persistence.enabled=true
     --set persistence.size=20Gi
+    --set configData.storage.delete.enabled=true
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: registry_status.rc != 0
 
-- name: Upgrader Docker Registry (retirer htpasswd interne)
+- name: Upgrader Docker Registry
   command: >
     helm upgrade registry docker-registry
     --repo https://twuni.github.io/docker-registry.helm
     --namespace registry
     --set persistence.enabled=true
     --set persistence.size=20Gi
+    --set configData.storage.delete.enabled=true
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: registry_status.rc == 0

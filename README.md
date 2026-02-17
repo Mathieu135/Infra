@@ -13,6 +13,7 @@ Infrastructure personnelle sur VPS OVH (k3s single-node).
 | Registry | Docker Registry self-hosted |
 | Secrets (Ansible) | Ansible Vault |
 | Secrets (K8s) | Sealed Secrets (kubeseal) |
+| GitOps | ArgoCD |
 | DNS | Cloudflare |
 
 ## Structure
@@ -62,7 +63,8 @@ Tous les enregistrements DNS pointent vers `91.134.142.175` (Cloudflare, DNS onl
 
 | Domaine | Service |
 |---------|---------|
-| `matltz.dev` | Portfolio + blog |
+| `matltz.dev` | Portfolio + blog (React + Express) |
+| `argocd.matltz.dev` | ArgoCD |
 | `registry.matltz.dev` | Docker Registry + UI |
 
 ## Sécurité

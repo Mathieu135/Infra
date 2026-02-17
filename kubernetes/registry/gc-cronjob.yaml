@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: registry-gc
+  namespace: registry
+spec:
+  schedule: "30 3 * * 0"  # Chaque dimanche à 3h30 (après le cleanup)
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: gc
+              image: registry:2
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "=== Registry garbage collect ==="
+                  registry garbage-collect /etc/docker/registry/config.yml --delete-untagged
+                  echo "=== GC termine ==="
+              volumeMounts:
+                - name: registry-data
+                  mountPath: /var/lib/registry
+                - name: registry-config
+                  mountPath: /etc/docker/registry
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "500m"
+          volumes:
+            - name: registry-data
+              persistentVolumeClaim:
+                claimName: registry-docker-registry
+            - name: registry-config
+              configMap:
+                name: registry-docker-registry
