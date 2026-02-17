@@ -55,6 +55,67 @@ registry.matltz.dev       → Docker Registry + UI (auth basic)
 grafana.matltz.dev        → Dashboards monitoring
 ```
 
+## Structure du repo
+
+### `ansible/` — Provisioning (one-shot)
+
+```
+ansible/
+├── inventory/hosts.yml                 ← IP du VPS + user SSH
+├── inventory/group_vars/all/vault.yml  ← Secrets chiffrés (ansible-vault)
+├── playbooks/                          ← Point d'entrée par composant
+│   ├── bootstrap.yml                   ← Packages de base, sécurité, UFW
+│   ├── k3s.yml                         ← Install k3s
+│   ├── sealed-secrets.yml              ← Install Sealed Secrets (Helm)
+│   ├── registry.yml                    ← Docker Registry (Helm + Ingress)
+│   ├── registry-ui.yml                 ← UI pour le registry
+│   └── argocd.yml                      ← ArgoCD (Helm)
+├── roles/                              ← Logique de chaque composant
+│   ├── common/tasks/main.yml
+│   ├── k3s/tasks/main.yml
+│   └── ...
+└── Makefile                            ← `make bootstrap`, `make k3s`, etc.
+```
+
+Ansible se connecte en SSH au VPS et installe les composants via Helm.
+C'est du **one-shot** — lancé une fois pour provisionner, ou pour upgrader.
+Chaque rôle = un composant infra (k3s, registry, argocd...).
+
+### `kubernetes/` — Manifests GitOps (continu)
+
+```
+kubernetes/
+├── apps/                           ← Manifests des projets déployés
+│   └── portfolio/
+│       ├── kustomization.yaml      ← Liste des resources
+│       ├── deployment-*.yaml       ← Pods frontend/backend
+│       ├── service-*.yaml          ← Services internes
+│       ├── ingress.yaml            ← Routing externe (TLS)
+│       ├── pvc.yaml                ← Stockage persistant
+│       └── sealed-secret.yaml      ← Secrets chiffrés
+├── argocd/apps/                    ← Applications ArgoCD
+│   ├── portfolio.yaml              ← Pointe vers kubernetes/apps/portfolio
+│   └── registry-maintenance.yaml   ← Pointe vers kubernetes/registry
+└── registry/                       ← CronJobs de maintenance
+    ├── cleanup-cronjob.yaml
+    └── gc-cronjob.yaml
+```
+
+ArgoCD surveille ce dossier sur GitHub. Quand un fichier change (ex: CI met à jour un tag d'image), ArgoCD le détecte et applique automatiquement sur le cluster. C'est du **GitOps continu**.
+
+### Lien entre les deux
+
+```
+Ansible (one-shot)              Kubernetes (continu)
+━━━━━━━━━━━━━━━━━━              ━━━━━━━━━━━━━━━━━━━━
+Installe k3s              →     Le cluster tourne
+Installe ArgoCD           →     ArgoCD surveille kubernetes/
+Installe Registry         →     CI push les images
+                                ArgoCD déploie les apps
+```
+
+Ansible pose l'infra, ensuite tout passe par Git + ArgoCD.
+
 ## Étapes de mise en place
 
 1. [Ansible bootstrap](01-ansible-bootstrap.md)
@@ -66,3 +127,4 @@ grafana.matltz.dev        → Dashboards monitoring
 7. [Premier projet test](07-premier-projet.md)
 8. [Monitoring](08-monitoring.md)
 9. [Onboarder un projet](09-onboarding-projet.md)
+10. [Comprendre Ansible et k3s](10-comprendre-ansible-et-k3s.md)
