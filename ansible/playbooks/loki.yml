@@ -1,0 +1,4 @@
+- name: Installer Loki
+  hosts: vps
+  roles:
+    - loki

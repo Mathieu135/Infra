@@ -25,7 +25,7 @@
     --set grafana.persistence.size=2Gi
     --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
     --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false
-    --set alertmanager.enabled=false
+    --set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage=1Gi
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: monitoring_status.rc != 0
@@ -42,7 +42,7 @@
     --set grafana.persistence.size=2Gi
     --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
     --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false
-    --set alertmanager.enabled=false
+    --set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage=1Gi
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: monitoring_status.rc == 0

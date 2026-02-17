@@ -1,5 +1,5 @@
 INVENTORY = inventory/hosts.yml
-PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml playbooks/sealed-secrets.yml playbooks/monitoring.yml
+PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml playbooks/sealed-secrets.yml playbooks/monitoring.yml playbooks/loki.yml
 FLAGS =
 RUN = ansible-playbook -i $(INVENTORY)
 
@@ -38,6 +38,12 @@ monitoring:
 
 check-monitoring:
 	$(RUN) playbooks/monitoring.yml --check --diff $(FLAGS)
+
+loki:
+	$(RUN) playbooks/loki.yml $(FLAGS)
+
+check-loki:
+	$(RUN) playbooks/loki.yml --check --diff $(FLAGS)
 
 reset:
 	$(RUN) playbooks/reset.yml $(FLAGS)

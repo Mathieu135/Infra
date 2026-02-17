@@ -1,0 +1,70 @@
+# --- Helm repo ---
+- name: Ajouter le repo Helm Grafana
+  command: helm repo add grafana https://grafana.github.io/helm-charts
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: repo_add
+  changed_when: "'has been added' in repo_add.stdout"
+  failed_when: false
+
+- name: Mettre à jour les repos Helm
+  command: helm repo update
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  changed_when: false
+
+# --- Helm install ---
+- name: Vérifier si loki-stack est installé
+  command: helm status loki -n monitoring
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: loki_status
+  failed_when: false
+  changed_when: false
+
+- name: Installer loki-stack
+  command: >
+    helm install loki grafana/loki-stack
+    --namespace monitoring
+    --set loki.persistence.enabled=true
+    --set loki.persistence.size=5Gi
+    --set promtail.enabled=true
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: loki_status.rc != 0
+
+- name: Upgrader loki-stack
+  command: >
+    helm upgrade loki grafana/loki-stack
+    --namespace monitoring
+    --set loki.persistence.enabled=true
+    --set loki.persistence.size=5Gi
+    --set promtail.enabled=true
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: loki_status.rc == 0
+
+# --- Datasource Loki pour Grafana ---
+- name: Créer la datasource Loki pour Grafana
+  command: kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  args:
+    stdin: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: grafana-datasource-loki
+        namespace: monitoring
+        labels:
+          grafana_datasource: "1"
+      data:
+        loki-datasource.yaml: |
+          apiVersion: 1
+          datasources:
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki:3100
+              uid: loki
+              isDefault: false
