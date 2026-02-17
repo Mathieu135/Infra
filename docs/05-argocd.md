@@ -1,102 +1,58 @@
 # Étape 5 — ArgoCD
 
+> **Statut : DONE** — Installé via Ansible (rôle `argocd`). Vérifié le 2026-02-17.
+
 ## Prérequis
 
-- k3s fonctionnel (étape 2)
-- cert-manager configuré (étape 3)
-- DNS configuré : `argocd.ton-domaine.com` → IP du serveur
+- k3s fonctionnel (étape 2) ✅
+- cert-manager configuré (étape 3) ✅
+- DNS : `argocd.matltz.dev → 91.134.142.175` (Cloudflare, DNS only) ✅
 
-## Installation
+## Architecture
+
+```
+Client → HTTPS → Ingress NGINX (TLS terminé ici) → HTTP → ArgoCD pod
+```
+
+Mode `insecure` (recommandé par ArgoCD) : le TLS est géré par l'ingress, le trafic interne au cluster est en HTTP.
+
+## Installation via Ansible ✅
 
 ```bash
-# Créer le namespace
-kubectl create namespace argocd
-
-# Installer ArgoCD
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+make argocd
 ```
 
-Ou via Helm (plus configurable) :
-
-```bash
-helm repo add argo https://argoproj.github.io/argo-helm
-helm repo update
-
-helm install argocd argo/argo-cd \
-  --namespace argocd \
-  --create-namespace \
-  --set server.ingress.enabled=true \
-  --set server.ingress.hosts[0]=argocd.ton-domaine.com
-```
-
-## Ingress
-
-```yaml
-# kubernetes/argocd/ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: argocd-server
-  namespace: argocd
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    # ArgoCD utilise gRPC, important pour NGINX
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
-spec:
-  tls:
-    - hosts:
-        - argocd.ton-domaine.com
-      secretName: argocd-tls
-  rules:
-    - host: argocd.ton-domaine.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: argocd-server
-                port:
-                  number: 443
-```
+Le playbook affiche le mot de passe admin initial à la fin.
 
 ## Premier accès
 
-```bash
-# Récupérer le mot de passe admin initial
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+- URL : `https://argocd.matltz.dev`
+- User : `admin`
+- Password : affiché par `make argocd` ou :
 
-# Se connecter
-# User : admin
-# Password : le mot de passe récupéré ci-dessus
+```bash
+ssh vps "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
 ```
 
-Changer le mot de passe admin immédiatement après la première connexion.
-
-## Installer la CLI ArgoCD
+Changer le mot de passe immédiatement :
 
 ```bash
 brew install argocd
-
-# Se connecter
-argocd login argocd.ton-domaine.com
-
-# Changer le mot de passe
+argocd login argocd.matltz.dev
 argocd account update-password
 ```
+
+Nouveau mot de passe stocké dans Ansible Vault.
 
 ## Connecter le repo GitHub
 
 ### Option A — Deploy key (recommandé)
 
 ```bash
-# Générer une clé dédiée
 ssh-keygen -t ed25519 -f ~/.ssh/argocd-deploy -N ""
 
 # Ajouter la clé publique dans GitHub → repo infra → Settings → Deploy keys (read-only)
 
-# Ajouter le repo dans ArgoCD
 argocd repo add git@github.com:ton-user/infra.git \
   --ssh-private-key-path ~/.ssh/argocd-deploy
 ```
@@ -107,10 +63,7 @@ Settings → Repositories → Connect Repo → SSH → coller la clé privée.
 
 ## Créer une Application ArgoCD
 
-Chaque projet déployé est une "Application" ArgoCD :
-
 ```yaml
-# kubernetes/argocd/apps/exemple.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -127,18 +80,17 @@ spec:
     namespace: mon-app
   syncPolicy:
     automated:
-      prune: true        # supprime les ressources retirées du Git
-      selfHeal: true     # remet en état si modifié manuellement
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
 ```
 
-## App of Apps pattern (optionnel, recommandé)
+## App of Apps pattern (recommandé)
 
 Un seul Application qui pointe vers un dossier contenant d'autres Applications :
 
 ```yaml
-# kubernetes/argocd/app-of-apps.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -149,7 +101,7 @@ spec:
   source:
     repoURL: git@github.com:ton-user/infra.git
     targetRevision: main
-    path: kubernetes/argocd/apps  # contient les yamls de chaque Application
+    path: kubernetes/argocd/apps
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
@@ -163,18 +115,12 @@ Ajouter un nouveau projet = ajouter un YAML dans `kubernetes/argocd/apps/`.
 ## Vérification
 
 ```bash
-# Vérifier qu'ArgoCD tourne
 kubectl get pods -n argocd
-
-# Lister les apps
 argocd app list
-
-# Voir le statut d'une app
-argocd app get mon-app
 ```
 
-## Fichiers à créer
+## Fichiers
 
-- `kubernetes/argocd/ingress.yaml`
-- `kubernetes/argocd/app-of-apps.yaml`
-- `kubernetes/argocd/apps/` — un YAML par projet
+- `ansible/playbooks/argocd.yml`
+- `ansible/roles/argocd/tasks/main.yml`
+- Mot de passe admin dans `ansible/inventory/group_vars/all/vault.yml`

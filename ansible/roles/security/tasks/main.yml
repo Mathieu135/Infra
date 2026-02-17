@@ -1,5 +1,5 @@
 # --- SSH Hardening ---
-- name: Désactiver PasswordAuthetication SSH
+- name: Désactiver PasswordAuthentication SSH
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PasswordAuthentication'
@@ -12,6 +12,13 @@
     path: /etc/ssh/sshd_config
     regexp: '^#?PermitRootLogin'
     line: 'PermitRootLogin no'
+  become: yes
+  notify: restart sshd
+
+- name: Supprimer les overrides cloud-init SSH
+  file:
+    path: /etc/ssh/sshd_config.d/50-cloud-init.conf
+    state: absent
   become: yes
   notify: restart sshd
 

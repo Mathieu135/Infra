@@ -17,6 +17,43 @@
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: ingress_status.rc != 0
 
+- name: Upgrader Ingress NGINX
+  command: >
+    helm upgrade ingress-nginx ingress-nginx
+    --repo https://kubernetes.github.io/ingress-nginx
+    --namespace ingress-nginx
+    --set controller.service.type=LoadBalancer
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: ingress_status.rc == 0
+
+# --- Config globale sécurité NGINX ---
+- name: Appliquer la ConfigMap sécurité globale
+  command: kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  args:
+    stdin: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: ingress-nginx-controller
+        namespace: ingress-nginx
+      data:
+        # Rate limiting global
+        limit-req-status-code: "429"
+        limit-conn-status-code: "429"
+        # Security headers
+        hide-headers: "X-Powered-By,Server"
+        server-tokens: "false"
+        use-forwarded-headers: "true"
+        # SSL
+        ssl-protocols: "TLSv1.2 TLSv1.3"
+        ssl-redirect: "true"
+        hsts: "true"
+        hsts-max-age: "31536000"
+        hsts-include-subdomains: "true"
+
 # --- Cert-Manager ---
 - name: Vérifier si cert-manager est installé
   command: helm status cert-manager -n cert-manager
