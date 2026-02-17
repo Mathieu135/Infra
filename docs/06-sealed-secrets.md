@@ -1,5 +1,7 @@
 # Étape 6 — Sealed Secrets
 
+> **Statut : DONE** — Rôle Ansible + `make kubeseal` helper. Vérifié le 2026-02-17.
+
 ## Prérequis
 
 - k3s fonctionnel (étape 2) ✅
