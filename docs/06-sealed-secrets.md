@@ -2,7 +2,8 @@
 
 ## Prérequis
 
-- k3s fonctionnel (étape 2)
+- k3s fonctionnel (étape 2) ✅
+- `kubeseal` installé localement : `brew install kubeseal`
 
 ## Pourquoi Sealed Secrets
 
@@ -11,19 +12,16 @@
 - Seul le controller sur le cluster peut déchiffrer
 - On peut commiter les `SealedSecret` dans Git en toute sécurité
 
-## Installation
-
-### Controller sur le cluster
+## Installation via Ansible
 
 ```bash
-helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
-helm repo update
-
-helm install sealed-secrets sealed-secrets/sealed-secrets \
-  --namespace kube-system
+cd ansible/
+make sealed-secrets
 ```
 
-### CLI sur ton Mac
+Le rôle installe le chart Helm `sealed-secrets` dans `kube-system`.
+
+## CLI locale
 
 ```bash
 brew install kubeseal
@@ -97,6 +95,8 @@ kubectl get pods -n kube-system -l app.kubernetes.io/name=sealed-secrets
 kubectl get secret mon-secret -n mon-app
 ```
 
-## Fichiers à créer
+## Fichiers
 
+- `ansible/playbooks/sealed-secrets.yml`
+- `ansible/roles/sealed-secrets/tasks/main.yml`
 - `kubernetes/apps/<projet>/sealed-secret.yaml` — un par projet

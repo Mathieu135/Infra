@@ -1,5 +1,5 @@
 INVENTORY = inventory/hosts.yml
-PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml
+PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml playbooks/sealed-secrets.yml
 FLAGS =
 RUN = ansible-playbook -i $(INVENTORY)
 
@@ -29,6 +29,9 @@ registry-ui:
 
 argocd:
 	$(RUN) playbooks/argocd.yml $(FLAGS)
+
+sealed-secrets:
+	$(RUN) playbooks/sealed-secrets.yml $(FLAGS)
 
 reset:
 	$(RUN) playbooks/reset.yml $(FLAGS)
