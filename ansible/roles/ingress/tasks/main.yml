@@ -1,0 +1,65 @@
+# --- Ingress NGINX ---
+- name: Vérifier si ingress-nginx est installé
+  command: helm status ingress-nginx -n ingress-nginx
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: ingress_status
+  failed_when: false
+  changed_when: false
+
+- name: Installer Ingress NGINX
+  command: >
+    helm install ingress-nginx ingress-nginx
+    --repo https://kubernetes.github.io/ingress-nginx
+    --namespace ingress-nginx --create-namespace
+    --set controller.service.type=LoadBalancer
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: ingress_status.rc != 0
+
+# --- Cert-Manager ---
+- name: Vérifier si cert-manager est installé
+  command: helm status cert-manager -n cert-manager
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: certmanager_status
+  failed_when: false
+  changed_when: false
+
+- name: Installer cert-manager
+  command: >
+    helm install cert-manager cert-manager
+    --repo https://charts.jetstack.io
+    --namespace cert-manager --create-namespace
+    --set crds.enabled=true
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: certmanager_status.rc != 0
+
+- name: Attendre que cert-manager soit prêt
+  command: kubectl -n cert-manager rollout status deployment/cert-manager --timeout=120s
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  changed_when: false
+
+# --- ClusterIssuer Let's Encrypt ---
+- name: Appliquer le ClusterIssuer
+  command: kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  args:
+    stdin: |
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-prod
+      spec:
+        acme:
+          server: https://acme-v02.api.letsencrypt.org/directory
+          email: "{{ letsencrypt_email }}"
+          privateKeySecretRef:
+            name: letsencrypt-prod
+          solvers:
+            - http01:
+                ingress:
+                  class: nginx

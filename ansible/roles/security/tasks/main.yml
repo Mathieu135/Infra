@@ -1,0 +1,92 @@
+# --- SSH Hardening ---
+- name: Désactiver PasswordAuthetication SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+  become: yes
+  notify: restart sshd
+
+- name: Désactiver PermitRootLogin SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+  become: yes
+  notify: restart sshd
+
+# --- Firewall ---
+- name: Installer ufw
+  apt:
+    name: ufw
+    state: present
+  become: yes
+
+- name: Autoriser SSH
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+  become: yes
+
+- name: Autoriser HTTP
+  ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+  become: yes
+
+- name: Autoriser HTTPS
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+  become: yes
+
+- name: Autoriser API Kubernetes
+  ufw:
+    rule: allow
+    port: '6443'
+    proto: tcp
+  become: yes
+
+- name: Activer ufw
+  ufw:
+    state: enabled
+    policy: deny
+  become: yes
+
+# --- Fail2ban ---
+- name: Installer Fail2ban
+  apt:
+    name: fail2ban
+    state: present
+  become: yes
+
+- name: Configurer fail2ban pour SSH
+  copy:
+    dest: /etc/fail2ban/jail.local
+    content: |
+      [sshd]
+      enabled = true
+      port = 22
+      maxretry = 5
+      bantime = 3600
+      findtime = 600
+  become: yes
+  notify: restart fail2ban
+
+  # --- Mises à jour automatiques ---
+- name: Installer unattended-upgrades
+  apt:
+    name: unattended-upgrades
+    state: present
+  become: yes
+
+- name: Activer unattended-upgrades
+  copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+  become: yes

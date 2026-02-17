@@ -1,0 +1,55 @@
+# --- k3s ---
+- name: Vérifier si k3s est déjà installé
+  stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Installer k3s
+  shell: curl -sfL https://get.k3s.io | sh -s - --disable traefik
+  when: not k3s_binary.stat.exists
+  become: yes
+
+- name: Attendre que k3s soit prêt
+  command: kubectl get nodes
+  register: k3s_ready
+  retries: 10
+  delay: 5
+  until: k3s_ready.rc == 0
+  become: yes
+  changed_when: false
+
+# --- Kubeconfig pour l'utilisateur ---
+- name: Créer le dossier .kube
+  file:
+    path: "/home/{{ ansible_user }}/.kube"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0700'
+
+- name: Copier le Kubeconfig
+  copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    remote_src: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+  become: yes
+
+- name: Ajouter KUBECONFIG au bashrc
+  lineinfile:
+    path: "/home/{{ ansible_user }}/.bashrc"
+    line: 'export KUBECONFIG=~/.kube/config'
+    state: present
+
+# --- Helm ---
+- name: Vérifier si Helm est déjà installé
+  stat:
+    path: /usr/local/bin/helm
+  register: helm_binary
+
+- name: Installer Helm
+  shell: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  when: not helm_binary.stat.exists
+  become: yes

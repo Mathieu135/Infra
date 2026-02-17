@@ -1,0 +1,6 @@
+---
+skip_list:
+  - fqcn             # ne pas exiger ansible.builtin.* partout
+  - command-instead-of-shell
+  - risky-shell-pipe # curl | sh est voulu ici
+  - no-changed-when

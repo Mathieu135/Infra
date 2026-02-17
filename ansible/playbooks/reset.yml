@@ -1,0 +1,25 @@
+# ansible/playbooks/reset.yml
+  - name: Reset complet du serveur
+    hosts: vps
+    become: yes
+    tasks:
+    - name: Désinstaller k3s
+      shell: /usr/local/bin/k3s-uninstall.sh
+      args:
+        removes: /usr/local/bin/k3s
+
+    - name: Supprimer Helm
+      file:
+        path: /usr/local/bin/helm
+        state: absent
+
+    - name: Supprimer le dossier .kube
+      file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: absent
+
+    - name: Supprimer KUBECONFIG du bashrc
+      lineinfile:
+        path: "/home/{{ ansible_user }}/.bashrc"
+        line: 'export KUBECONFIG=~/.kube/config'
+        state: absent

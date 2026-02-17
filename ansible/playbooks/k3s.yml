@@ -1,0 +1,5 @@
+- name: Installation k3s et stack Kubernetes
+  hosts: vps
+  roles:
+    - k3s
+    - ingress

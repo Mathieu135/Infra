@@ -1,0 +1,5 @@
+- name: Bootstrap du serveur
+  hosts: vps
+  roles:
+    - common
+    - security
