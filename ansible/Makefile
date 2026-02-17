@@ -1,5 +1,5 @@
 INVENTORY = inventory/hosts.yml
-PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml
+PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml
 FLAGS =
 RUN = ansible-playbook -i $(INVENTORY)
 
@@ -17,6 +17,15 @@ k3s:
 
 check-k3s:
 	$(RUN) playbooks/k3s.yml --check --diff $(FLAGS)
+
+registry:
+	$(RUN) playbooks/registry.yml $(FLAGS)
+
+check-registry:
+	$(RUN) playbooks/registry.yml --check --diff $(FLAGS)
+
+registry-ui:
+	$(RUN) playbooks/registry-ui.yml $(FLAGS)
 
 reset:
 	$(RUN) playbooks/reset.yml $(FLAGS)

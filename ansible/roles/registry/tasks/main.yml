@@ -1,0 +1,113 @@
+# --- Générer htpasswd ---
+- name: Installer apache2-utils pour htpasswd
+  apt:
+    name: apache2-utils
+    state: present
+  become: yes
+
+- name: Générer le fichier htpasswd
+  command: htpasswd -Bbn {{ registry_user }} {{ registry_password }}
+  register: htpasswd_content
+  changed_when: false
+
+# --- Namespace ---
+- name: Créer le namespace registry
+  shell: kubectl create namespace registry --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+# --- Secret basic-auth pour l'ingress ---
+- name: Créer le secret basic-auth
+  shell: >
+    kubectl create secret generic registry-basic-auth
+    --namespace registry
+    --from-literal=auth='{{ htpasswd_content.stdout }}'
+    --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+# --- Helm install (sans htpasswd interne) ---
+- name: Vérifier si le registry est installé
+  command: helm status registry -n registry
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: registry_status
+  failed_when: false
+  changed_when: false
+
+- name: Installer Docker Registry
+  command: >
+    helm install registry docker-registry
+    --repo https://twuni.github.io/docker-registry.helm
+    --namespace registry
+    --set persistence.enabled=true
+    --set persistence.size=20Gi
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: registry_status.rc != 0
+
+- name: Upgrader Docker Registry (retirer htpasswd interne)
+  command: >
+    helm upgrade registry docker-registry
+    --repo https://twuni.github.io/docker-registry.helm
+    --namespace registry
+    --set persistence.enabled=true
+    --set persistence.size=20Gi
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: registry_status.rc == 0
+
+# --- Ingress avec basic-auth ---
+- name: Appliquer l'Ingress du registry
+  command: kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  args:
+    stdin: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: registry
+        namespace: registry
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          nginx.ingress.kubernetes.io/proxy-body-size: "0"
+          nginx.ingress.kubernetes.io/auth-type: basic
+          nginx.ingress.kubernetes.io/auth-secret: registry-basic-auth
+          nginx.ingress.kubernetes.io/auth-realm: "Docker Registry"
+          nginx.ingress.kubernetes.io/limit-rps: "10"
+          nginx.ingress.kubernetes.io/limit-connections: "5"
+      spec:
+        ingressClassName: nginx
+        tls:
+          - hosts:
+              - registry.{{ domain }}
+            secretName: registry-tls
+        rules:
+          - host: registry.{{ domain }}
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: registry-docker-registry
+                      port:
+                        number: 5000
+
+# --- Config k3s pour pull ---
+- name: Configurer k3s pour le registry privé
+  copy:
+    dest: /etc/rancher/k3s/registries.yaml
+    content: |
+      mirrors:
+        registry.{{ domain }}:
+          endpoint:
+            - "https://registry.{{ domain }}"
+      configs:
+        "registry.{{ domain }}":
+          auth:
+            username: {{ registry_user }}
+            password: {{ registry_password }}
+  become: yes
+  notify: restart k3s

@@ -43,12 +43,29 @@
     proto: tcp
   become: yes
 
-- name: Autoriser API Kubernetes
+- name: Bloquer API Kubernetes publique
   ufw:
-    rule: allow
+    rule: deny
     port: '6443'
     proto: tcp
   become: yes
+
+- name: Autoriser API Kubernetes depuis le serveur lui-même
+  ufw:
+    rule: allow
+    from_ip: 127.0.0.1
+    port: '6443'
+    proto: tcp
+  become: yes
+
+- name: Autoriser API Kubernetes depuis l'IP admin
+  ufw:
+    rule: allow
+    from_ip: "{{ admin_ip }}"
+    port: '6443'
+    proto: tcp
+  become: yes
+  when: admin_ip is defined
 
 - name: Activer ufw
   ufw:

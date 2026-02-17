@@ -1,9 +1,11 @@
 # Étape 1 — Ansible Bootstrap du serveur
 
+> **Statut : DONE** — Bootstrap appliqué et vérifié sur le VPS.
+
 ## Prérequis
 
 - Ansible installé sur ton Mac (`brew install ansible`)
-- Accès SSH root au serveur o2s
+- Accès SSH au VPS OVH (user `ubuntu`)
 
 ## Inventory
 
@@ -12,47 +14,40 @@ Fichier `ansible/inventory/hosts.yml` :
 ```yaml
 all:
   hosts:
-    o2s:
-      ansible_host: 109.234.167.177
-      ansible_user: root
+    vps:
+      ansible_host: 91.134.142.175
+      ansible_user: ubuntu
       ansible_ssh_private_key_file: ~/.ssh/id_ed25519  # adapter selon ta clé
 ```
 
 ## Ce que fait le playbook bootstrap
 
-### 1. Créer un user non-root
-
-- Créer un user `deploy` avec accès sudo
-- Copier ta clé SSH publique
-- Désactiver le login root SSH après coup
-
-### 2. Sécuriser SSH
+### 1. Sécuriser SSH ✅
 
 - Désactiver `PasswordAuthentication`
-- Désactiver `PermitRootLogin` (après création du user deploy)
-- Changer le port SSH (optionnel mais recommandé)
+- Désactiver `PermitRootLogin`
 
-### 3. Firewall
+### 2. Firewall ✅
 
-Avec `ufw` :
+UFW actif, policy `deny` par défaut. Ports ouverts (IPv4 + IPv6) :
 
 ```
 22/tcp    — SSH
-80/tcp    — HTTP (redirect vers HTTPS)
+80/tcp    — HTTP
 443/tcp   — HTTPS
-6443/tcp  — API Kubernetes (restreindre à ton IP si possible)
+6443/tcp  — API Kubernetes
 ```
 
-### 4. fail2ban
+### 3. fail2ban ✅
 
-- Installer et configurer pour SSH
-- Ban après 5 tentatives, ban de 1h
+- Installé et configuré pour SSH
+- Ban après 5 tentatives, ban de 1h, findtime 10min
 
-### 5. Mises à jour automatiques
+### 4. Mises à jour automatiques ✅
 
-- `unattended-upgrades` pour les patches de sécurité
+- `unattended-upgrades` activé (patches de sécurité auto)
 
-### 6. Paquets de base
+### 5. Paquets de base ✅
 
 - `curl`, `wget`, `git`, `htop`, `jq`
 
@@ -60,10 +55,12 @@ Avec `ufw` :
 
 ```bash
 # Tester la connexion
-ansible -i ansible/inventory/hosts.yml all -m ping
+make ping
+# ou : ansible -i ansible/inventory/hosts.yml all -m ping
 
 # Lancer le bootstrap
-ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/bootstrap.yml
+make bootstrap
+# ou : ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/bootstrap.yml
 ```
 
 ## Vérification
@@ -71,8 +68,8 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/bootstrap.yml
 Après le bootstrap :
 
 ```bash
-# Se connecter avec le nouveau user
-ssh deploy@109.234.167.177
+# Se connecter
+ssh vps
 
 # Vérifier sudo
 sudo whoami  # → root
@@ -84,8 +81,9 @@ sudo ufw status
 sudo fail2ban-client status sshd
 ```
 
-## Fichiers à créer
+## Fichiers
 
 - `ansible/playbooks/bootstrap.yml`
-- `ansible/roles/common/tasks/main.yml` — user, paquets de base
+- `ansible/roles/common/tasks/main.yml` — paquets de base
 - `ansible/roles/security/tasks/main.yml` — SSH hardening, firewall, fail2ban
+- `ansible/roles/security/handlers/main.yml` — restart sshd, fail2ban

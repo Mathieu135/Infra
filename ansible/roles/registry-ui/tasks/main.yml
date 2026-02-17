@@ -1,0 +1,71 @@
+# --- Helm install ---
+- name: Vérifier si registry-ui est installé
+  command: helm status registry-ui -n registry
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: registry_ui_status
+  failed_when: false
+  changed_when: false
+
+- name: Installer Docker Registry UI
+  command: >
+    helm install registry-ui docker-registry-ui
+    --repo https://helm.joxit.dev
+    --namespace registry
+    --set ui.proxy=true
+    --set ui.dockerRegistryUrl=http://registry-docker-registry:5000
+    --set ui.singleRegistry=true
+    --set ui.title="Registry matltz.dev"
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: registry_ui_status.rc != 0
+
+- name: Upgrader Docker Registry UI (pointer vers le service interne)
+  command: >
+    helm upgrade registry-ui docker-registry-ui
+    --repo https://helm.joxit.dev
+    --namespace registry
+    --set ui.proxy=true
+    --set ui.dockerRegistryUrl=http://registry-docker-registry:5000
+    --set ui.singleRegistry=true
+    --set ui.title="Registry matltz.dev"
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: registry_ui_status.rc == 0
+
+# --- Ingress ---
+- name: Appliquer l'Ingress registry-ui
+  command: kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  args:
+    stdin: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: registry-ui
+        namespace: registry
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          nginx.ingress.kubernetes.io/auth-type: basic
+          nginx.ingress.kubernetes.io/auth-secret: registry-basic-auth
+          nginx.ingress.kubernetes.io/auth-realm: "Docker Registry UI"
+          nginx.ingress.kubernetes.io/limit-rps: "10"
+          nginx.ingress.kubernetes.io/limit-connections: "5"
+      spec:
+        ingressClassName: nginx
+        tls:
+          - hosts:
+              - registry-ui.{{ domain }}
+            secretName: registry-ui-tls
+        rules:
+          - host: registry-ui.{{ domain }}
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: registry-ui-docker-registry-ui-user-interface
+                      port:
+                        number: 80

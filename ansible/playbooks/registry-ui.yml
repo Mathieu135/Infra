@@ -1,0 +1,4 @@
+- name: Installation Docker Registry UI
+  hosts: vps
+  roles:
+    - registry-ui

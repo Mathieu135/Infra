@@ -40,8 +40,9 @@ metadata:
   namespace: argocd
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    # ArgoCD utilise gRPC, important pour Traefik
-    traefik.ingress.kubernetes.io/router.tls: "true"
+    # ArgoCD utilise gRPC, important pour NGINX
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
 spec:
   tls:
     - hosts:

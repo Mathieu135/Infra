@@ -4,9 +4,12 @@
 
 | Propriété | Valeur |
 |-----------|--------|
-| Nom | o2s |
-| IP | 109.234.167.177 |
-| Accès | SSH root |
+| Nom | vps |
+| IP | 91.134.142.175 |
+| Hébergeur | OVH VPS |
+| Domaine | matltz.dev (Cloudflare) |
+| DNS | Cloudflare |
+| Accès | SSH ubuntu |
 | Usage | Projets personnels uniquement |
 
 ## Stack
@@ -16,10 +19,11 @@
 | Provisioning | Ansible | Bootstrap et maintenance du serveur |
 | Kubernetes | k3s | Cluster single-node |
 | GitOps | ArgoCD | Déploiement automatique depuis Git |
-| Ingress | Traefik (inclus k3s) | Reverse proxy + routage |
+| Ingress | Ingress NGINX | Reverse proxy + routage |
 | TLS | cert-manager + Let's Encrypt | HTTPS automatique |
 | Registry | Docker Registry self-hosted | Stockage des images Docker |
-| Secrets | Sealed Secrets | Secrets chiffrés dans Git |
+| Secrets Ansible | Ansible Vault | Variables sensibles chiffrées |
+| Secrets K8s | Sealed Secrets | Secrets chiffrés dans Git |
 | Monitoring | Prometheus + Grafana | Métriques et dashboards |
 | CI | GitHub Actions | Build et push des images |
 
@@ -40,14 +44,16 @@ GitHub push
   → Deploy sur k3s
 ```
 
-## Domaines (à configurer)
+## Domaines
+
+Registrar : **Cloudflare** — DNS géré par Cloudflare.
 
 ```
-ton-domaine.com           → app principale (ou landing)
-*.ton-domaine.com         → sous-domaines par projet
-argocd.ton-domaine.com    → UI ArgoCD
-registry.ton-domaine.com  → Docker Registry
-grafana.ton-domaine.com   → Dashboards monitoring
+matltz.dev                → portfolio + blog
+argocd.matltz.dev         → UI ArgoCD
+registry.matltz.dev       → Docker Registry (auth basic)
+registry-ui.matltz.dev    → Interface web du Registry
+grafana.matltz.dev        → Dashboards monitoring
 ```
 
 ## Étapes de mise en place

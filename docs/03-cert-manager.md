@@ -1,85 +1,31 @@
-# Étape 3 — cert-manager + Let's Encrypt
+# Étape 3 — Ingress NGINX + cert-manager + Let's Encrypt
+
+> **Statut : DONE** — Installé via Ansible (rôle `ingress`). Vérifié le 2026-02-17 : tous les pods Running, ClusterIssuer Ready.
 
 ## Prérequis
 
-- k3s installé et fonctionnel (étape 2)
-- Un nom de domaine avec DNS pointant vers l'IP du serveur
-- `kubectl` et `helm` configurés sur ton Mac
+- k3s installé et fonctionnel (étape 2) ✅
 
-## Pourquoi cert-manager
+## Ce qui est installé
 
-- Génère et renouvelle automatiquement les certificats TLS
-- S'intègre avec Traefik via les annotations Ingress
-- Supporte Let's Encrypt (gratuit)
+Le rôle Ansible `ingress` installe les 3 composants d'un coup :
 
-## Installation
+### 1. Ingress NGINX ✅
 
-```bash
-# Ajouter le repo Helm
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
+Helm chart `ingress-nginx` (namespace `ingress-nginx`), service type `LoadBalancer`.
 
-# Installer cert-manager
-helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --create-namespace \
-  --set crds.enabled=true
-```
+### 2. cert-manager ✅
 
-## Configurer le ClusterIssuer
+Helm chart `jetstack/cert-manager` (namespace `cert-manager`), CRDs inclus.
 
-Deux options :
+### 3. ClusterIssuer `letsencrypt-prod` ✅
 
-### Option A — HTTP-01 (simple, recommandé pour commencer)
-
-Nécessite que les ports 80/443 soient ouverts et le domaine pointe vers le serveur.
-
-```yaml
-# kubernetes/cert-manager/cluster-issuer.yaml
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    email: ton-email@example.com
-    privateKeySecretRef:
-      name: letsencrypt-prod
-    solvers:
-      - http01:
-          ingress:
-            class: traefik
-```
-
-### Option B — DNS-01 (pour wildcard *.ton-domaine.com)
-
-Nécessite un provider DNS supporté (Cloudflare, OVH, etc.).
-
-```yaml
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    email: ton-email@example.com
-    privateKeySecretRef:
-      name: letsencrypt-prod
-    solvers:
-      - dns01:
-          cloudflare:
-            email: ton-email@example.com
-            apiTokenSecretRef:
-              name: cloudflare-api-token
-              key: api-token
-```
-
-## Appliquer
+HTTP-01 solver via Ingress NGINX. Appliqué directement par Ansible (inline YAML).
 
 ```bash
-kubectl apply -f kubernetes/cert-manager/cluster-issuer.yaml
+# Installation
+make all
+# ou spécifiquement le playbook k3s qui inclut le rôle ingress
 ```
 
 ## Utilisation dans les Ingress
@@ -111,20 +57,30 @@ spec:
                   number: 80
 ```
 
+> Domaine : `matltz.dev` (Cloudflare). Le ClusterIssuer est prêt, les certificats seront générés automatiquement quand un Ingress avec l'annotation sera créé.
+
+## Alternative DNS-01 (pour plus tard)
+
+Pour wildcard `*.matltz.dev`, passer au solver DNS-01 avec l'API Cloudflare.
+
 ## Vérification
 
 ```bash
-# Vérifier que cert-manager tourne
+# Ingress NGINX
+kubectl get pods -n ingress-nginx
+kubectl get svc -n ingress-nginx
+
+# cert-manager
 kubectl get pods -n cert-manager
 
-# Vérifier le ClusterIssuer
+# ClusterIssuer
 kubectl get clusterissuer
 # → letsencrypt-prod   True   ...
 
-# Vérifier un certificat (après avoir créé un Ingress)
+# Certificats (après avoir créé un Ingress avec domaine)
 kubectl get certificates
 ```
 
-## Fichiers à créer
+## Fichiers
 
-- `kubernetes/cert-manager/cluster-issuer.yaml`
+- `ansible/roles/ingress/tasks/main.yml` — installation des 3 composants

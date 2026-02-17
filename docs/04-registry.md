@@ -1,132 +1,69 @@
 # Étape 4 — Docker Registry self-hosted
 
+> **Statut : DONE** — Installé via Ansible. Vérifié le 2026-02-17 : push/pull + UI fonctionnels.
+
 ## Prérequis
 
-- k3s fonctionnel (étape 2)
-- cert-manager configuré (étape 3)
-- DNS configuré : `registry.ton-domaine.com` → IP du serveur
+- k3s fonctionnel (étape 2) ✅
+- cert-manager configuré (étape 3) ✅
+- DNS Cloudflare (DNS only, proxy désactivé) :
+  - `registry.matltz.dev → 91.134.142.175` ✅
+  - `registry-ui.matltz.dev → 91.134.142.175` ✅
 
-## Pourquoi self-hosted
+## Architecture
 
-- Gratuit, pas de limite de stockage/bande passante
-- Tes images restent chez toi
-- Pas besoin de compte Docker Hub ou ghcr.io payant
+```
+Internet → registry.matltz.dev (ingress + basic-auth) → registry pod (:5000)
+Internet → registry-ui.matltz.dev (ingress)           → UI pod (:80) → registry pod (interne, sans auth)
+```
 
-## Installation via Helm
+- L'auth (htpasswd) est gérée au niveau de l'ingress, pas dans le registry
+- L'UI accède au registry via le service Kubernetes interne (pas d'auth nécessaire)
+- Credentials stockés dans Ansible Vault
+
+## Ce qui est installé
+
+### Rôle `registry` (`make registry`)
+
+1. **Docker Registry** via Helm (`twuni/docker-registry`), persistence 20Gi ✅
+2. **Ingress** sur `registry.matltz.dev` avec TLS + basic-auth ✅
+3. **Config k3s** (`/etc/rancher/k3s/registries.yaml`) pour pull depuis le registry ✅
+
+### Rôle `registry-ui` (`make registry-ui`)
+
+4. **Docker Registry UI** via Helm (`joxit/docker-registry-ui`) ✅
+5. **Ingress** sur `registry-ui.matltz.dev` avec TLS ✅
+
+## Utilisation
 
 ```bash
-helm repo add twuni https://helm.twun.io
-helm repo update
+# Login
+docker login registry.matltz.dev
 
-helm install registry twuni/docker-registry \
-  --namespace registry \
-  --create-namespace \
-  --set persistence.enabled=true \
-  --set persistence.size=20Gi
-```
+# Push une image
+docker tag mon-app:latest registry.matltz.dev/mon-app:latest
+docker push registry.matltz.dev/mon-app:latest
 
-## Ingress pour exposer le registry
+# Lister les images
+curl -u <user> https://registry.matltz.dev/v2/_catalog
 
-```yaml
-# kubernetes/registry/ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: registry
-  namespace: registry
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    # Augmenter la taille max pour les layers Docker
-    nginx.ingress.kubernetes.io/proxy-body-size: "0"
-spec:
-  tls:
-    - hosts:
-        - registry.ton-domaine.com
-      secretName: registry-tls
-  rules:
-    - host: registry.ton-domaine.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: registry-docker-registry
-                port:
-                  number: 5000
-```
-
-## Authentification
-
-Créer un htpasswd secret pour protéger le registry :
-
-```bash
-# Générer le fichier htpasswd
-htpasswd -Bbn monuser monpassword > auth/htpasswd
-
-# Créer le secret Kubernetes
-kubectl create secret generic registry-auth \
-  --namespace registry \
-  --from-file=htpasswd=auth/htpasswd
-```
-
-Puis ajouter dans les values Helm :
-
-```yaml
-secrets:
-  htpasswd: ""  # sera lu depuis le secret
-```
-
-## Configurer k3s pour pull depuis ce registry
-
-Créer le fichier sur le serveur :
-
-```yaml
-# /etc/rancher/k3s/registries.yaml
-mirrors:
-  registry.ton-domaine.com:
-    endpoint:
-      - "https://registry.ton-domaine.com"
-configs:
-  registry.ton-domaine.com:
-    auth:
-      username: monuser
-      password: monpassword
-```
-
-Redémarrer k3s :
-
-```bash
-sudo systemctl restart k3s
-```
-
-## Configurer Docker local pour push
-
-```bash
-# Se connecter au registry depuis ton Mac
-docker login registry.ton-domaine.com
-
-# Tagger et push une image
-docker tag mon-app:latest registry.ton-domaine.com/mon-app:latest
-docker push registry.ton-domaine.com/mon-app:latest
+# Interface web
+https://registry-ui.matltz.dev
 ```
 
 ## Vérification
 
 ```bash
-# Vérifier que le registry tourne
 kubectl get pods -n registry
-
-# Tester le push/pull
-docker pull alpine
-docker tag alpine registry.ton-domaine.com/test:latest
-docker push registry.ton-domaine.com/test:latest
-
-# Lister les images
-curl -u monuser:monpassword https://registry.ton-domaine.com/v2/_catalog
+kubectl get ingress -n registry
+kubectl get certificates -n registry
 ```
 
-## Fichiers à créer
+## Fichiers
 
-- `kubernetes/registry/ingress.yaml`
-- `kubernetes/registry/values.yaml` (values Helm custom)
+- `ansible/playbooks/registry.yml`
+- `ansible/roles/registry/tasks/main.yml` — registry + ingress + auth + config k3s
+- `ansible/roles/registry/handlers/main.yml` — restart k3s
+- `ansible/playbooks/registry-ui.yml`
+- `ansible/roles/registry-ui/tasks/main.yml` — UI + ingress
+- Credentials dans `ansible/inventory/group_vars/all/vault.yml`
