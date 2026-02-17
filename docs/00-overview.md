@@ -51,8 +51,7 @@ Registrar : **Cloudflare** — DNS géré par Cloudflare.
 ```
 matltz.dev                → portfolio + blog
 argocd.matltz.dev         → UI ArgoCD
-registry.matltz.dev       → Docker Registry (auth basic)
-registry-ui.matltz.dev    → Interface web du Registry
+registry.matltz.dev       → Docker Registry + UI (auth basic)
 grafana.matltz.dev        → Dashboards monitoring
 ```
 

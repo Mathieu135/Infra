@@ -91,9 +91,9 @@
                   pathType: Prefix
                   backend:
                     service:
-                      name: registry-docker-registry
+                      name: registry-ui-docker-registry-ui-user-interface
                       port:
-                        number: 5000
+                        number: 80
 
 # --- Config k3s pour pull ---
 - name: Configurer k3s pour le registry privé

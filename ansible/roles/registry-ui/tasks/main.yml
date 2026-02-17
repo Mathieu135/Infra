@@ -20,7 +20,7 @@
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: registry_ui_status.rc != 0
 
-- name: Upgrader Docker Registry UI (pointer vers le service interne)
+- name: Upgrader Docker Registry UI
   command: >
     helm upgrade registry-ui docker-registry-ui
     --repo https://helm.joxit.dev
@@ -33,39 +33,8 @@
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: registry_ui_status.rc == 0
 
-# --- Ingress ---
-- name: Appliquer l'Ingress registry-ui
-  command: kubectl apply -f -
+# --- Cleanup ancien ingress registry-ui ---
+- name: Supprimer l'ancien ingress registry-ui
+  command: kubectl delete ingress registry-ui -n registry --ignore-not-found
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
-  args:
-    stdin: |
-      apiVersion: networking.k8s.io/v1
-      kind: Ingress
-      metadata:
-        name: registry-ui
-        namespace: registry
-        annotations:
-          cert-manager.io/cluster-issuer: letsencrypt-prod
-          nginx.ingress.kubernetes.io/auth-type: basic
-          nginx.ingress.kubernetes.io/auth-secret: registry-basic-auth
-          nginx.ingress.kubernetes.io/auth-realm: "Docker Registry UI"
-          nginx.ingress.kubernetes.io/limit-rps: "10"
-          nginx.ingress.kubernetes.io/limit-connections: "5"
-      spec:
-        ingressClassName: nginx
-        tls:
-          - hosts:
-              - registry-ui.{{ domain }}
-            secretName: registry-ui-tls
-        rules:
-          - host: registry-ui.{{ domain }}
-            http:
-              paths:
-                - path: /
-                  pathType: Prefix
-                  backend:
-                    service:
-                      name: registry-ui-docker-registry-ui-user-interface
-                      port:
-                        number: 80

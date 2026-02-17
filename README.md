@@ -60,8 +60,7 @@ Tous les enregistrements DNS pointent vers `91.134.142.175` (Cloudflare, DNS onl
 | Domaine | Service |
 |---------|---------|
 | `matltz.dev` | Portfolio + blog |
-| `registry.matltz.dev` | Docker Registry |
-| `registry-ui.matltz.dev` | Interface web du Registry |
+| `registry.matltz.dev` | Docker Registry + UI |
 
 ## Sécurité
 
