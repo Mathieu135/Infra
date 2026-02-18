@@ -7,5 +7,6 @@ resources:
   - service-frontend.yaml
   - service-backend.yaml
   - ingress.yaml
+  - network-policy.yaml
 generators:
   - ksops-generator.yaml
