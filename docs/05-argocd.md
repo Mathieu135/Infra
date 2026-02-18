@@ -22,7 +22,10 @@ Mode `insecure` (recommandé par ArgoCD) : le TLS est géré par l'ingress, le t
 make argocd
 ```
 
-Le playbook affiche le mot de passe admin initial à la fin.
+Le playbook :
+1. Installe/upgrade ArgoCD via Helm
+2. Applique automatiquement toutes les Applications depuis `kubernetes/argocd/apps/`
+3. Affiche le mot de passe admin initial
 
 ## Premier accès
 
@@ -119,8 +122,20 @@ kubectl get pods -n argocd
 argocd app list
 ```
 
+## Applications gérées
+
+| App | Source | Namespace cible |
+|-----|--------|-----------------|
+| `portfolio` | `kubernetes/apps/portfolio` | portfolio |
+| `monitoring-dashboards` | `kubernetes/monitoring` | monitoring |
+| `registry-maintenance` | `kubernetes/registry` | registry |
+| `argocd-policies` | `kubernetes/argocd-policies` | argocd |
+
+Ajouter une app = créer un YAML dans `kubernetes/argocd/apps/` puis `make argocd`.
+
 ## Fichiers
 
 - `ansible/playbooks/argocd.yml`
 - `ansible/roles/argocd/tasks/main.yml`
+- `kubernetes/argocd/apps/` — définitions des Applications
 - Mot de passe admin dans `ansible/inventory/group_vars/all/vault.yml`

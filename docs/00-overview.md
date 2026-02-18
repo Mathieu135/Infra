@@ -25,6 +25,8 @@
 | Secrets Ansible | Ansible Vault | Variables sensibles chiffrées |
 | Secrets K8s | SOPS + age | Secrets chiffrés dans Git (KSOPS) |
 | Monitoring | Prometheus + Grafana | Métriques et dashboards |
+| Logs | Loki + Promtail | Collecte et query des logs |
+| Network | NetworkPolicies | Isolation réseau des namespaces |
 | CI | GitHub Actions | Build et push des images |
 
 ## Repos
@@ -101,14 +103,25 @@ kubernetes/
 │       ├── service-*.yaml          ← Services internes
 │       ├── ingress.yaml            ← Routing externe (TLS)
 │       ├── pvc.yaml                ← Stockage persistant
+│       ├── network-policy.yaml     ← NetworkPolicies (isolation réseau)
 │       ├── secrets.enc.yaml        ← Secrets chiffrés (SOPS/age)
 │       └── ksops-generator.yaml    ← Générateur KSOPS pour Kustomize
 ├── argocd/apps/                    ← Applications ArgoCD
 │   ├── portfolio.yaml              ← Pointe vers kubernetes/apps/portfolio
-│   └── registry-maintenance.yaml   ← Pointe vers kubernetes/registry
-└── registry/                       ← CronJobs de maintenance
+│   ├── monitoring-dashboards.yaml  ← Pointe vers kubernetes/monitoring
+│   ├── registry-maintenance.yaml   ← Pointe vers kubernetes/registry
+│   └── argocd-policies.yaml        ← Pointe vers kubernetes/argocd-policies
+├── argocd-policies/                ← NetworkPolicies du namespace argocd
+│   └── network-policy.yaml
+├── monitoring/                     ← Dashboards, alertes, NetworkPolicies
+│   ├── dashboard-*.yaml
+│   ├── service-monitor-generic.yaml
+│   ├── prometheus-rules.yaml
+│   └── network-policy.yaml
+└── registry/                       ← CronJobs de maintenance + NetworkPolicies
     ├── cleanup-cronjob.yaml
-    └── gc-cronjob.yaml
+    ├── gc-cronjob.yaml
+    └── network-policy.yaml
 ```
 
 ArgoCD surveille ce dossier sur GitHub. Quand un fichier change (ex: CI met à jour un tag d'image), ArgoCD le détecte et applique automatiquement sur le cluster. C'est du **GitOps continu**.
@@ -138,3 +151,4 @@ Ansible pose l'infra, ensuite tout passe par Git + ArgoCD.
 8. [Monitoring](08-monitoring.md)
 9. [Onboarder un projet](09-onboarding-projet.md)
 10. [Comprendre Ansible et k3s](10-comprendre-ansible-et-k3s.md)
+11. [NetworkPolicies](11-network-policies.md)

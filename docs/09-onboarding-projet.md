@@ -15,6 +15,7 @@
   - `deployment.yaml` (ou split frontend/backend)
   - `service.yaml`
   - `ingress.yaml`
+  - `network-policy.yaml` (isolation réseau — voir [NetworkPolicies](11-network-policies.md))
   - `kustomization.yaml`
   - `secrets.enc.yaml` (secret chiffré SOPS)
   - `ksops-generator.yaml` (générateur KSOPS)
@@ -40,7 +41,7 @@ make secret-create APP=<nom-projet>
 # Éditer les valeurs, puis :
 make secret-edit APP=<nom-projet>
 ```
-- [ ] Appliquer l'app ArgoCD :
+- [ ] Appliquer l'app ArgoCD (automatique via `make argocd`, ou manuellement) :
 ```bash
 kubectl apply -f kubernetes/argocd/apps/<nom-projet>.yaml
 ```
