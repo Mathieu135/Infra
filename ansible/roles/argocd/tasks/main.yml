@@ -63,6 +63,24 @@
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   changed_when: false
 
+# --- Appliquer les Applications ArgoCD ---
+- name: Copier les définitions d'apps ArgoCD
+  copy:
+    src: "{{ playbook_dir }}/../../kubernetes/argocd/apps/"
+    dest: /tmp/argocd-apps/
+  changed_when: false
+
+- name: Appliquer les Applications ArgoCD
+  shell: kubectl apply -f /tmp/argocd-apps/
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Nettoyer les fichiers temporaires
+  file:
+    path: /tmp/argocd-apps
+    state: absent
+  changed_when: false
+
 # --- Supprimer l'Ingress (accès via port-forward uniquement) ---
 - name: Supprimer l'Ingress ArgoCD
   command: kubectl delete ingress argocd-server -n argocd --ignore-not-found
