@@ -13,8 +13,29 @@
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   changed_when: false
 
-# --- Helm install ---
-- name: Vérifier si loki-stack est installé
+# --- Désinstaller l'ancien loki-stack si présent ---
+- name: Vérifier si l'ancien loki-stack est installé
+  command: helm status loki -n monitoring
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: old_loki_status
+  failed_when: false
+  changed_when: false
+
+- name: Désinstaller l'ancien loki-stack
+  command: helm uninstall loki -n monitoring
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: old_loki_status.rc == 0
+
+- name: Supprimer l'ancien PVC loki
+  command: kubectl delete pvc storage-loki-0 -n monitoring --ignore-not-found
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  changed_when: false
+
+# --- Loki 3 (chart grafana/loki) ---
+- name: Vérifier si loki est installé
   command: helm status loki -n monitoring
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
@@ -22,27 +43,90 @@
   failed_when: false
   changed_when: false
 
-- name: Installer loki-stack
+- name: Installer Loki 3
   command: >
-    helm install loki grafana/loki-stack
+    helm install loki grafana/loki
     --namespace monitoring
-    --set loki.persistence.enabled=true
-    --set loki.persistence.size=5Gi
-    --set promtail.enabled=true
+    --set deploymentMode=SingleBinary
+    --set loki.auth_enabled=false
+    --set singleBinary.replicas=1
+    --set loki.storage.type=filesystem
+    --set loki.commonConfig.replication_factor=1
+    --set loki.schemaConfig.configs[0].from=2024-01-01
+    --set loki.schemaConfig.configs[0].store=tsdb
+    --set loki.schemaConfig.configs[0].object_store=filesystem
+    --set loki.schemaConfig.configs[0].schema=v13
+    --set loki.schemaConfig.configs[0].index.prefix=index_
+    --set loki.schemaConfig.configs[0].index.period=24h
+    --set singleBinary.persistence.enabled=true
+    --set singleBinary.persistence.size=5Gi
+    --set backend.replicas=0
+    --set read.replicas=0
+    --set write.replicas=0
+    --set chunksCache.enabled=false
+    --set resultsCache.enabled=false
+    --set lokiCanary.enabled=false
+    --set test.enabled=false
+    --set gateway.enabled=false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: loki_status.rc != 0
 
-- name: Upgrader loki-stack
+- name: Upgrader Loki 3
   command: >
-    helm upgrade loki grafana/loki-stack
+    helm upgrade loki grafana/loki
     --namespace monitoring
-    --set loki.persistence.enabled=true
-    --set loki.persistence.size=5Gi
-    --set promtail.enabled=true
+    --set deploymentMode=SingleBinary
+    --set loki.auth_enabled=false
+    --set singleBinary.replicas=1
+    --set loki.storage.type=filesystem
+    --set loki.commonConfig.replication_factor=1
+    --set loki.schemaConfig.configs[0].from=2024-01-01
+    --set loki.schemaConfig.configs[0].store=tsdb
+    --set loki.schemaConfig.configs[0].object_store=filesystem
+    --set loki.schemaConfig.configs[0].schema=v13
+    --set loki.schemaConfig.configs[0].index.prefix=index_
+    --set loki.schemaConfig.configs[0].index.period=24h
+    --set singleBinary.persistence.enabled=true
+    --set singleBinary.persistence.size=5Gi
+    --set backend.replicas=0
+    --set read.replicas=0
+    --set write.replicas=0
+    --set chunksCache.enabled=false
+    --set resultsCache.enabled=false
+    --set lokiCanary.enabled=false
+    --set test.enabled=false
+    --set gateway.enabled=false
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: loki_status.rc == 0
+
+# --- Promtail (chart séparé) ---
+- name: Vérifier si promtail est installé
+  command: helm status promtail -n monitoring
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: promtail_status
+  failed_when: false
+  changed_when: false
+
+- name: Installer Promtail
+  command: >
+    helm install promtail grafana/promtail
+    --namespace monitoring
+    --set config.clients[0].url=http://loki:3100/loki/api/v1/push
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: promtail_status.rc != 0
+
+- name: Upgrader Promtail
+  command: >
+    helm upgrade promtail grafana/promtail
+    --namespace monitoring
+    --set config.clients[0].url=http://loki:3100/loki/api/v1/push
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: promtail_status.rc == 0
 
 # --- Datasource Loki pour Grafana ---
 - name: Créer la datasource Loki pour Grafana
@@ -68,3 +152,8 @@
               url: http://loki:3100
               uid: loki
               isDefault: false
+
+- name: Redémarrer Grafana pour charger la datasource
+  command: kubectl rollout restart deployment/monitoring-grafana -n monitoring
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"

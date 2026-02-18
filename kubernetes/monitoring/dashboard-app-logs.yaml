@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-app-logs
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  app-logs.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Log Volume by Level",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "error" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "warn" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "info" },
+                "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+              }
+            ]
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum by (level) (count_over_time({namespace=\"$namespace\"} | json [1m]))",
+              "legendFormat": "{{level}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Logs",
+          "type": "logs",
+          "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"$namespace\"} | json",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Errors Only",
+          "type": "logs",
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{namespace=\"$namespace\"} | json | level = \"error\"",
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "templating": {
+        "list": [
+          {
+            "current": {},
+            "datasource": { "type": "loki", "uid": "loki" },
+            "definition": "label_values({job=~\".+\"}, namespace)",
+            "name": "namespace",
+            "query": { "qryType": 1, "query": "label_values({job=~\".+\"}, namespace)" },
+            "refresh": 2,
+            "type": "query"
+          }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "App Logs",
+      "uid": "app-logs"
+    }

@@ -37,6 +37,18 @@ spec:
               mountPath: /app/data
             - name: uploads
               mountPath: /app/uploads
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
             requests:
               memory: "128Mi"
