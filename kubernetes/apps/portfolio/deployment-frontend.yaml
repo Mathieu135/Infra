@@ -17,7 +17,7 @@ spec:
         - name: registry-credentials
       containers:
         - name: frontend
-          image: registry.matltz.dev/portfolio-frontend:4f3364a5e2f9efc66488008d4a942ba583e5923d
+          image: registry.matltz.dev/portfolio-frontend:8f679bb3b14eb2ec4390026282fd26e75dd7b25e
           ports:
             - containerPort: 80
           resources:
