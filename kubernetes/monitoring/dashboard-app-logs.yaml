@@ -44,6 +44,9 @@ data:
               "datasource": { "type": "loki", "uid": "loki" },
               "expr": "sum by (level) (count_over_time({namespace=\"$namespace\", level=~\".+\"}[1m]))",
               "legendFormat": "{{level}}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
               "refId": "A"
             }
           ]
