@@ -5,13 +5,17 @@ config:
   snippets:
     pipelineStages:
       - cri: {}
+
+      # 1. Tenter le parse JSON
+      - json:
+          expressions:
+            level: level
+            ts: ts
+
+      # 2. Logs JSON valides : extraire level + timestamp
       - match:
-          selector: '{app!=""}'
+          selector: '{__error__=""}'
           stages:
-            - json:
-                expressions:
-                  level: level
-                  ts: ts
             - labels:
                 level:
             - timestamp:
@@ -20,6 +24,27 @@ config:
                 fallback_formats:
                   - "2006-01-02T15:04:05.000Z"
                   - UnixMs
+
+      # 3. Logs non-JSON : détecter le level depuis le texte
+      - match:
+          selector: '{__error__!=""}'
+          stages:
+            - labeldrop:
+                - __error__
+                - __error_details__
+            - regex:
+                expression: '(?i)\b(?P<detected_level>error|warn(?:ing)?|info|debug)\b'
+            - template:
+                source: level
+                template: '{{ if .detected_level }}{{ ToLower .detected_level }}{{ else }}info{{ end }}'
+            - replace:
+                expression: '(?i)\bwarning\b'
+                replace: 'warn'
+                source: level
+            - labels:
+                level:
+
+      # 4. Drop debug en prod
       - match:
           selector: '{level="debug"}'
           action: drop
