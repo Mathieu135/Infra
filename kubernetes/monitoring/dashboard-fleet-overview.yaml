@@ -1,0 +1,311 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-fleet-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  fleet-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "App Status",
+          "type": "table",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Up" },
+                "properties": [
+                  { "id": "mappings", "value": [
+                    { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } }
+                  ]},
+                  { "id": "custom.cellOptions", "value": { "type": "color-background" } },
+                  { "id": "custom.width", "value": 80 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Restarts" },
+                "properties": [
+                  { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 1 },
+                    { "color": "red", "value": 5 }
+                  ]}},
+                  { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+                  { "id": "custom.width", "value": 80 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Error Rate" },
+                "properties": [
+                  { "id": "unit", "value": "percentunit" },
+                  { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.01 },
+                    { "color": "red", "value": 0.05 }
+                  ]}},
+                  { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+                  { "id": "custom.width", "value": 100 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Req/s" },
+                "properties": [
+                  { "id": "unit", "value": "reqps" },
+                  { "id": "decimals", "value": 1 },
+                  { "id": "custom.width", "value": 80 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "p95" },
+                "properties": [
+                  { "id": "unit", "value": "s" },
+                  { "id": "thresholds", "value": { "mode": "absolute", "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.5 },
+                    { "color": "red", "value": 2 }
+                  ]}},
+                  { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+                  { "id": "custom.width", "value": 80 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Memory" },
+                "properties": [
+                  { "id": "unit", "value": "bytes" },
+                  { "id": "custom.width", "value": 100 }
+                ]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "merge", "options": {} },
+            { "id": "organize", "options": {
+              "excludeByName": { "Time": true },
+              "renameByName": {}
+            }}
+          ],
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "up{job=\"generic-apps\"}",
+              "legendFormat": "{{ namespace }}",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "editorMode": "code",
+              "refId": "up"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (namespace) (increase(kube_pod_container_status_restarts_total{namespace=~\"portfolio|.*\"}[1h]) * on(namespace) group_left() (count by (namespace) (up{job=\"generic-apps\"})))",
+              "legendFormat": "{{ namespace }}",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "editorMode": "code",
+              "refId": "restarts"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (namespace) (rate(http_requests_total{status=~\"5..\"}[5m])) / sum by (namespace) (rate(http_requests_total[5m]))",
+              "legendFormat": "{{ namespace }}",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "editorMode": "code",
+              "refId": "errors"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (namespace) (rate(http_requests_total[5m]))",
+              "legendFormat": "{{ namespace }}",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "editorMode": "code",
+              "refId": "reqrate"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "histogram_quantile(0.95, sum by (namespace, le) (rate(http_request_duration_seconds_bucket[5m])))",
+              "legendFormat": "{{ namespace }}",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "editorMode": "code",
+              "refId": "latency"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (namespace) (process_resident_memory_bytes * on(namespace) group_left() (count by (namespace) (up{job=\"generic-apps\"})))",
+              "legendFormat": "{{ namespace }}",
+              "format": "table",
+              "instant": true,
+              "range": false,
+              "editorMode": "code",
+              "refId": "memory"
+            }
+          ]
+        },
+        {
+          "title": "Request Rate by App",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "fillOpacity": 20 },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (namespace) (rate(http_requests_total[5m]))",
+              "legendFormat": "{{ namespace }}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Error Rate by App",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "fillOpacity": 20 },
+              "unit": "percentunit",
+              "max": 1
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (namespace) (rate(http_requests_total{status=~\"5..\"}[5m])) / sum by (namespace) (rate(http_requests_total[5m]))",
+              "legendFormat": "{{ namespace }}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "p95 Latency by App",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "fillOpacity": 10 },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "histogram_quantile(0.95, sum by (namespace, le) (rate(http_request_duration_seconds_bucket[5m])))",
+              "legendFormat": "{{ namespace }}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Pod Restarts (1h)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "bars", "fillOpacity": 50 },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (namespace, pod) (increase(kube_pod_container_status_restarts_total[1h])) > 0",
+              "legendFormat": "{{ namespace }}/{{ pod }}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Memory by Pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "fillOpacity": 20 },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{namespace!~\"kube-system|monitoring\", container!=\"\", container!=\"POD\"})",
+              "legendFormat": "{{ namespace }}/{{ pod }}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "CPU by Pod",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "fillOpacity": 20 },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace!~\"kube-system|monitoring\", container!=\"\", container!=\"POD\"}[5m]))",
+              "legendFormat": "{{ namespace }}/{{ pod }}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Fleet Overview",
+      "uid": "fleet-overview"
+    }
