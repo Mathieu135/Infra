@@ -306,6 +306,7 @@ data:
       "schemaVersion": 39,
       "templating": { "list": [] },
       "time": { "from": "now-1h", "to": "now" },
+      "tags": ["custom", "fleet", "kubernetes", "overview"],
       "title": "Fleet Overview",
       "uid": "fleet-overview"
     }

@@ -201,6 +201,7 @@ data:
       "schemaVersion": 39,
       "templating": { "list": [] },
       "time": { "from": "now-24h", "to": "now" },
+      "tags": ["custom", "ingress", "nginx", "networking"],
       "title": "ingress-nginx",
       "uid": "ingress-nginx"
     }

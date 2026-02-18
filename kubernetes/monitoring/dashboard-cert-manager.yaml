@@ -190,6 +190,7 @@ data:
       "schemaVersion": 39,
       "templating": { "list": [] },
       "time": { "from": "now-24h", "to": "now" },
+      "tags": ["custom", "cert-manager", "certificates", "tls"],
       "title": "cert-manager",
       "uid": "cert-manager"
     }

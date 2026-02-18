@@ -169,6 +169,7 @@ data:
         ]
       },
       "time": { "from": "now-1h", "to": "now" },
+      "tags": ["custom", "app", "prometheus", "performance"],
       "title": "App Overview",
       "uid": "app-overview"
     }
