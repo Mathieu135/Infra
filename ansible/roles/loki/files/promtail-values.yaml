@@ -1,0 +1,25 @@
+config:
+  clients:
+    - url: http://loki:3100/loki/api/v1/push
+
+  snippets:
+    pipelineStages:
+      - cri: {}
+      - match:
+          selector: '{app!=""}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+                  ts: ts
+            - labels:
+                level:
+            - timestamp:
+                source: ts
+                format: RFC3339Nano
+                fallback_formats:
+                  - "2006-01-02T15:04:05.000Z"
+                  - UnixMs
+      - match:
+          selector: '{level="debug"}'
+          action: drop

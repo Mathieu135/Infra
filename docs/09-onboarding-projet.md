@@ -169,6 +169,32 @@ C'est tout. Le ServiceMonitor générique scrape automatiquement les Services la
 
 Voir [étape 8](08-monitoring.md) pour les détails.
 
+### 6. Logs (automatique)
+
+Les logs stdout sont collectés automatiquement par Promtail. Pour que les dashboards fonctionnent correctement, l'app doit logger en **JSON** avec ces champs :
+
+| Champ | Type | Description |
+|---|---|---|
+| `level` | string | `info`, `warn`, `error` (obligatoire) |
+| `msg` | string | Message du log |
+| `ts` | string | Timestamp ISO 8601 / RFC 3339 |
+
+Champs optionnels pour les requêtes HTTP :
+
+| Champ | Type | Description |
+|---|---|---|
+| `method` | string | `GET`, `POST`, etc. |
+| `path` | string | `/api/users` |
+| `status` | number | Code HTTP |
+| `duration_ms` | number | Durée en ms |
+
+Exemple de ligne de log :
+```json
+{"level":"info","msg":"request completed","ts":"2025-01-15T10:30:00Z","method":"GET","path":"/api/health","status":200,"duration_ms":3}
+```
+
+Les logs `debug` sont automatiquement droppés en production.
+
 ## Résumé
 
 1. Dockerfile + GitHub Actions dans le repo projet

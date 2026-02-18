@@ -42,7 +42,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "sum by (level) (count_over_time({namespace=\"$namespace\"} | json [1m]))",
+              "expr": "sum by (level) (count_over_time({namespace=\"$namespace\", level=~\".+\"} [1m]))",
               "legendFormat": "{{level}}",
               "refId": "A"
             }
@@ -87,7 +87,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "{namespace=\"$namespace\"} | json | level = \"error\"",
+              "expr": "{namespace=\"$namespace\", level=\"error\"} | json",
               "refId": "A"
             }
           ]

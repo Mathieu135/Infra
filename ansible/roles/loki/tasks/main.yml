@@ -110,11 +110,16 @@
   failed_when: false
   changed_when: false
 
+- name: Copier les values Promtail
+  copy:
+    src: promtail-values.yaml
+    dest: "/home/{{ ansible_user }}/promtail-values.yaml"
+
 - name: Installer Promtail
   command: >
     helm install promtail grafana/promtail
     --namespace monitoring
-    --set config.clients[0].url=http://loki:3100/loki/api/v1/push
+    -f /home/{{ ansible_user }}/promtail-values.yaml
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: promtail_status.rc != 0
@@ -123,7 +128,7 @@
   command: >
     helm upgrade promtail grafana/promtail
     --namespace monitoring
-    --set config.clients[0].url=http://loki:3100/loki/api/v1/push
+    -f /home/{{ ansible_user }}/promtail-values.yaml
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: promtail_status.rc == 0
