@@ -160,9 +160,9 @@ data:
           {
             "current": {},
             "datasource": { "type": "prometheus", "uid": "prometheus" },
-            "definition": "label_values(up, namespace)",
+            "definition": "label_values(http_requests_total, namespace)",
             "name": "namespace",
-            "query": { "qryType": 1, "query": "label_values(up, namespace)" },
+            "query": { "qryType": 1, "query": "label_values(http_requests_total, namespace)" },
             "refresh": 2,
             "type": "query"
           }

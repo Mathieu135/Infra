@@ -1,12 +1,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: portfolio-backend
-  namespace: portfolio
+  name: generic-apps
+  namespace: monitoring
 spec:
+  namespaceSelector:
+    any: true
   selector:
     matchLabels:
-      app: portfolio-backend
+      monitoring: "true"
   endpoints:
     - port: http
       path: /metrics

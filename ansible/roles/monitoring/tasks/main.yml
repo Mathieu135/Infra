@@ -27,6 +27,8 @@
     --set prometheus.prometheusSpec.serviceMonitorNamespaceSelectorNilUsesHelmValues=false
     --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false
     --set prometheus.prometheusSpec.podMonitorNamespaceSelectorNilUsesHelmValues=false
+    --set prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false
+    --set prometheus.prometheusSpec.ruleNamespaceSelectorNilUsesHelmValues=false
     --set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage=1Gi
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
@@ -46,6 +48,8 @@
     --set prometheus.prometheusSpec.serviceMonitorNamespaceSelectorNilUsesHelmValues=false
     --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false
     --set prometheus.prometheusSpec.podMonitorNamespaceSelectorNilUsesHelmValues=false
+    --set prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false
+    --set prometheus.prometheusSpec.ruleNamespaceSelectorNilUsesHelmValues=false
     --set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage=1Gi
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"

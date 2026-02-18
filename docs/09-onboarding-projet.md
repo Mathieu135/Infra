@@ -147,10 +147,33 @@ spec:
       - CreateNamespace=true
 ```
 
+### 5. Monitoring (automatique)
+
+Si l'app expose des métriques Prometheus (`GET /metrics`), deux conditions :
+
+1. Le port du Service est nommé `http`
+2. Le Service porte le label `monitoring: "true"`
+
+```yaml
+metadata:
+  labels:
+    monitoring: "true"
+spec:
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+```
+
+C'est tout. Le ServiceMonitor générique scrape automatiquement les Services labellisés, les dashboards Grafana et les alertes s'appliquent à tous les namespaces.
+
+Voir [étape 8](08-monitoring.md) pour les détails.
+
 ## Résumé
 
 1. Dockerfile + GitHub Actions dans le repo projet
 2. Manifests + app ArgoCD dans le repo infra
 3. DNS Cloudflare (A record, DNS only)
 4. `registry-credentials` + sealed secret + `kubectl apply` de l'app ArgoCD
-5. Push → déploiement automatique
+5. Label `monitoring: "true"` sur le Service (si métriques)
+6. Push → déploiement automatique

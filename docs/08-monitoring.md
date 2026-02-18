@@ -4,17 +4,16 @@
 
 - k3s fonctionnel (étape 2)
 - cert-manager configuré (étape 3)
-- DNS : `grafana.matltz.dev` → `91.134.142.175` (A record, DNS only sur Cloudflare)
 
 ## Architecture
 
 Le chart `kube-prometheus-stack` est installé via Ansible (rôle `monitoring`), même pattern que les autres composants. Il inclut :
 
 - **Prometheus** — collecte des métriques (rétention 15 jours, PVC 10Gi)
-- **Grafana** — dashboards (PVC 2Gi, exposé sur `grafana.matltz.dev`)
+- **Grafana** — dashboards (PVC 2Gi, accès via port-forward)
 - **Node Exporter** — métriques système des nodes
 - **kube-state-metrics** — métriques des objets Kubernetes
-- Alertmanager désactivé (pas configuré pour l'instant)
+- **Alertmanager** — alertes (PVC 1Gi)
 
 ## Configuration
 
@@ -28,7 +27,8 @@ Les values sont passées en `--set` dans le rôle Ansible (`ansible/roles/monito
 | `grafana.persistence` | Activée, 2Gi |
 | `serviceMonitorSelectorNilUsesHelmValues` | `false` (scrape tous les namespaces) |
 | `podMonitorSelectorNilUsesHelmValues` | `false` |
-| `alertmanager.enabled` | `false` |
+| `ruleSelectorNilUsesHelmValues` | `false` (charge les PrometheusRules de tous les namespaces) |
+| `ruleNamespaceSelectorNilUsesHelmValues` | `false` |
 
 ## Déploiement
 
@@ -41,25 +41,47 @@ ansible-vault edit ansible/inventory/group_vars/all/vault.yml
 cd ansible && make monitoring
 ```
 
-## Exposer les métriques de tes apps
+## Auto-discovery des métriques
 
-Ajouter un `ServiceMonitor` pour chaque app qui expose des métriques Prometheus :
+Un **ServiceMonitor générique** (`kubernetes/monitoring/service-monitor-generic.yaml`) scrape automatiquement tout Service portant le label `monitoring: "true"`, quel que soit le namespace.
+
+Pour exposer les métriques d'une app, il suffit de :
+
+1. L'app expose `GET /metrics` au format Prometheus
+2. Le Service K8s a un port nommé `http`
+3. Le Service porte le label `monitoring: "true"`
 
 ```yaml
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
+apiVersion: v1
+kind: Service
 metadata:
   name: mon-app
   namespace: mon-app
+  labels:
+    monitoring: "true"
 spec:
   selector:
-    matchLabels:
-      app: mon-app
-  endpoints:
-    - port: http
-      path: /metrics
-      interval: 30s
+    app: mon-app
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
 ```
+
+Pas besoin de créer un ServiceMonitor par projet.
+
+## Alertes
+
+Des règles d'alerte sont définies dans `kubernetes/monitoring/prometheus-rules.yaml` :
+
+| Alerte | Condition | Sévérité |
+|---|---|---|
+| **PodCrashLooping** | > 3 restarts en 10 min | critical |
+| **HighErrorRate** | > 5% de 5xx pendant 5 min | warning |
+| **PodNotReady** | Pod not ready > 5 min | warning |
+| **HighLatency** | p95 > 2s pendant 5 min | warning |
+
+Ces alertes s'appliquent automatiquement à toutes les apps instrumentées.
 
 ## Dashboards
 
@@ -92,11 +114,14 @@ data:
 # Vérifier les pods
 kubectl get pods -n monitoring
 
-# Accéder à Grafana
-# https://grafana.matltz.dev (admin / <password du vault>)
+# Accéder à Grafana (port-forward)
+make grafana
 
 # Vérifier les targets Prometheus
 # Grafana → Connections → Data sources → Prometheus → Test
+
+# Vérifier les alertes
+# Grafana → Alerting → Alert rules
 ```
 
 ## Fichiers
@@ -104,3 +129,7 @@ kubectl get pods -n monitoring
 - `ansible/roles/monitoring/tasks/main.yml` — rôle Ansible
 - `ansible/playbooks/monitoring.yml` — playbook
 - `ansible/inventory/group_vars/all/vault.yml` — password Grafana (chiffré)
+- `kubernetes/monitoring/service-monitor-generic.yaml` — ServiceMonitor auto-discovery
+- `kubernetes/monitoring/prometheus-rules.yaml` — règles d'alerte
+- `kubernetes/monitoring/dashboard-app-overview.yaml` — dashboard App Overview
+- `kubernetes/monitoring/dashboard-app-logs.yaml` — dashboard App Logs

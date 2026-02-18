@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
   - dashboard-app-overview.yaml
   - dashboard-app-logs.yaml
+  - service-monitor-generic.yaml
+  - prometheus-rules.yaml
