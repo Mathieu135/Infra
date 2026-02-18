@@ -4,6 +4,30 @@
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
+# --- Copier les values Helm ---
+- name: Copier argocd-values.yaml
+  copy:
+    src: argocd-values.yaml
+    dest: /tmp/argocd-values.yaml
+
+# --- Secret SOPS age ---
+- name: Vérifier si le secret sops-age-key existe
+  command: kubectl get secret sops-age-key -n argocd
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  register: sops_key_check
+  failed_when: false
+  changed_when: false
+
+- name: Créer le secret sops-age-key
+  shell: |
+    kubectl create secret generic sops-age-key \
+      --namespace argocd \
+      --from-file=keys.txt={{ sops_age_key_file }}
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: sops_key_check.rc != 0
+
 # --- Helm install ---
 - name: Vérifier si argocd est installé
   command: helm status argocd -n argocd
@@ -18,7 +42,7 @@
     helm install argocd argo-cd
     --repo https://argoproj.github.io/argo-helm
     --namespace argocd
-    --set "configs.params.server\.insecure=true"
+    -f /tmp/argocd-values.yaml
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: argocd_status.rc != 0
@@ -28,7 +52,7 @@
     helm upgrade argocd argo-cd
     --repo https://argoproj.github.io/argo-helm
     --namespace argocd
-    --set "configs.params.server\.insecure=true"
+    -f /tmp/argocd-values.yaml
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: argocd_status.rc == 0

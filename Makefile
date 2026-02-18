@@ -1,10 +1,15 @@
 VPS = vps
 
-.PHONY: help tunnel ssh ensure-tunnel pf-argocd pf-grafana pf-all pf-ls pf-stop pf-down _pf-gen _pf-stop kubeseal
+include k8s.mk
+
+.PHONY: help tunnel ssh ensure-tunnel pf-argocd pf-grafana pf-all pf-ls pf-stop pf-down _pf-gen _pf-stop secret-edit secret-view secret-create pods pods-app pods-mon status logs restarts svc events
 
 help: ## Affiche cette aide
 	@printf "\033[1m%-20s %s\033[0m\n" "TARGET" "DESCRIPTION"
-	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | grep -v '^_' | sort | awk -F ':.*## ' '{ printf "  %-18s %s\n", $$1, $$2 }'
+	@grep -E '^[a-zA-Z_-]+:.*##' Makefile | sort | awk -F ':.*## ' '{ printf "  %-18s %s\n", $$1, $$2 }'
+	@echo ""
+	@echo "Kubernetes (k8s.mk) :"
+	@grep -E '^[a-zA-Z_-]+:.*##' k8s.mk | sort | awk -F ':.*## ' '{ printf "  %-18s %s\n", $$1, $$2 }'
 	@echo ""
 	@echo "Ansible (délégués) :"
 	@$(MAKE) -C ansible --no-print-directory help 2>/dev/null || echo "  monitoring, loki, ... → cd ansible && make <target>"
@@ -108,13 +113,36 @@ _pf-stop:
 		rm $(PF_PID_DIR)/$(NAME); \
 	fi
 
-kubeseal: ## Scelle un secret : make kubeseal IN=... OUT=...
-	@test -n "$(IN)" || (echo "Usage: make kubeseal IN=/tmp/secret.yaml OUT=kubernetes/apps/mon-app/sealed-secret.yaml" && exit 1)
-	@test -n "$(OUT)" || (echo "Usage: make kubeseal IN=/tmp/secret.yaml OUT=kubernetes/apps/mon-app/sealed-secret.yaml" && exit 1)
-	ssh -f -N -L 26443:127.0.0.1:6443 $(VPS) -o ExitOnForwardFailure=yes
-	kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key -o jsonpath='{.items[0].data.tls\.crt}' | base64 -d > /tmp/kubeseal-cert.pem
-	kubeseal --format yaml --cert /tmp/kubeseal-cert.pem < $(IN) > $(OUT)
-	rm -f /tmp/kubeseal-cert.pem
-	@kill $$(lsof -ti:26443) 2>/dev/null || true
-	rm -f $(IN)
-	@echo "Sealed secret → $(OUT) (secret en clair supprimé)"
+secret-edit: ## Édite un secret chiffré : make secret-edit APP=portfolio
+	@test -n "$(APP)" || (echo "Usage: make secret-edit APP=<nom>" && exit 1)
+	sops kubernetes/apps/$(APP)/secrets.enc.yaml
+
+secret-view: ## Affiche un secret en clair : make secret-view APP=portfolio
+	@test -n "$(APP)" || (echo "Usage: make secret-view APP=<nom>" && exit 1)
+	sops -d kubernetes/apps/$(APP)/secrets.enc.yaml
+
+secret-create: ## Crée un nouveau secret chiffré : make secret-create APP=portfolio
+	@test -n "$(APP)" || (echo "Usage: make secret-create APP=<nom>" && exit 1)
+	@mkdir -p kubernetes/apps/$(APP)
+	@echo 'apiVersion: v1' > kubernetes/apps/$(APP)/secrets.enc.yaml
+	@echo 'kind: Secret' >> kubernetes/apps/$(APP)/secrets.enc.yaml
+	@echo 'metadata:' >> kubernetes/apps/$(APP)/secrets.enc.yaml
+	@echo '  name: $(APP)-secrets' >> kubernetes/apps/$(APP)/secrets.enc.yaml
+	@echo '  namespace: $(APP)' >> kubernetes/apps/$(APP)/secrets.enc.yaml
+	@echo 'stringData:' >> kubernetes/apps/$(APP)/secrets.enc.yaml
+	@echo '  KEY: value' >> kubernetes/apps/$(APP)/secrets.enc.yaml
+	sops -e -i kubernetes/apps/$(APP)/secrets.enc.yaml
+	@test -f kubernetes/apps/$(APP)/ksops-generator.yaml || ( \
+		echo 'apiVersion: viaduct.ai/v1' > kubernetes/apps/$(APP)/ksops-generator.yaml && \
+		echo 'kind: ksops' >> kubernetes/apps/$(APP)/ksops-generator.yaml && \
+		echo 'metadata:' >> kubernetes/apps/$(APP)/ksops-generator.yaml && \
+		echo '  name: $(APP)-secrets' >> kubernetes/apps/$(APP)/ksops-generator.yaml && \
+		echo '  annotations:' >> kubernetes/apps/$(APP)/ksops-generator.yaml && \
+		echo '    config.kubernetes.io/function: |' >> kubernetes/apps/$(APP)/ksops-generator.yaml && \
+		echo '      exec:' >> kubernetes/apps/$(APP)/ksops-generator.yaml && \
+		echo '        path: ksops' >> kubernetes/apps/$(APP)/ksops-generator.yaml && \
+		echo 'files:' >> kubernetes/apps/$(APP)/ksops-generator.yaml && \
+		echo '  - secrets.enc.yaml' >> kubernetes/apps/$(APP)/ksops-generator.yaml \
+	)
+	@echo "Secret créé → kubernetes/apps/$(APP)/secrets.enc.yaml"
+	@echo "Generator  → kubernetes/apps/$(APP)/ksops-generator.yaml"

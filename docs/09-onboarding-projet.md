@@ -16,7 +16,8 @@
   - `service.yaml`
   - `ingress.yaml`
   - `kustomization.yaml`
-  - `sealed-secret.yaml` (si secrets nécessaires)
+  - `secrets.enc.yaml` (secret chiffré SOPS)
+  - `ksops-generator.yaml` (générateur KSOPS)
   - `pvc.yaml` (si stockage persistant)
 - [ ] **Application ArgoCD** dans `kubernetes/argocd/apps/<nom-projet>.yaml`
 
@@ -33,13 +34,11 @@ kubectl create secret docker-registry registry-credentials \
   --docker-server=registry.matltz.dev \
   --docker-username=USER --docker-password=PASS
 ```
-- [ ] Sealed secret si nécessaire :
+- [ ] Secret chiffré SOPS si nécessaire :
 ```bash
-kubectl create secret generic <nom-projet>-secrets \
-  --namespace <nom-projet> \
-  --from-literal=CLE=VALEUR \
-  --dry-run=client -o yaml > /tmp/secret.yaml
-make kubeseal IN=/tmp/secret.yaml OUT=kubernetes/apps/<nom-projet>/sealed-secret.yaml
+make secret-create APP=<nom-projet>
+# Éditer les valeurs, puis :
+make secret-edit APP=<nom-projet>
 ```
 - [ ] Appliquer l'app ArgoCD :
 ```bash
@@ -200,6 +199,6 @@ Les logs `debug` sont automatiquement droppés en production.
 1. Dockerfile + GitHub Actions dans le repo projet
 2. Manifests + app ArgoCD dans le repo infra
 3. DNS Cloudflare (A record, DNS only)
-4. `registry-credentials` + sealed secret + `kubectl apply` de l'app ArgoCD
+4. `registry-credentials` + secret SOPS + `kubectl apply` de l'app ArgoCD
 5. Label `monitoring: "true"` sur le Service (si métriques)
 6. Push → déploiement automatique
