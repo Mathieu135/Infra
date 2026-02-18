@@ -3,59 +3,63 @@ PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml pla
 FLAGS =
 RUN = ansible-playbook -i $(INVENTORY)
 
-ping:
+help: ## Affiche cette aide
+	@printf "\033[1m%-20s %s\033[0m\n" "TARGET" "DESCRIPTION"
+	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | sort | awk -F ':.*## ' '{ printf "  %-18s %s\n", $$1, $$2 }'
+
+ping: ## Ping les hosts
 	ansible -i $(INVENTORY) all -m ping
 
-bootstrap:
+bootstrap: ## Provisionner le VPS
 	$(RUN) playbooks/bootstrap.yml $(FLAGS)
 
-check-bootstrap:
+check-bootstrap: ## Dry-run bootstrap
 	$(RUN) playbooks/bootstrap.yml --check --diff $(FLAGS)
 
-k3s:
+k3s: ## Installer/upgrader k3s
 	$(RUN) playbooks/k3s.yml $(FLAGS)
 
-check-k3s:
+check-k3s: ## Dry-run k3s
 	$(RUN) playbooks/k3s.yml --check --diff $(FLAGS)
 
-registry:
+registry: ## Installer/upgrader la registry Docker
 	$(RUN) playbooks/registry.yml $(FLAGS)
 
-check-registry:
+check-registry: ## Dry-run registry
 	$(RUN) playbooks/registry.yml --check --diff $(FLAGS)
 
-registry-ui:
+registry-ui: ## Installer/upgrader la registry UI
 	$(RUN) playbooks/registry-ui.yml $(FLAGS)
 
-argocd:
+argocd: ## Installer/upgrader ArgoCD
 	$(RUN) playbooks/argocd.yml $(FLAGS)
 
-sealed-secrets:
+sealed-secrets: ## Installer/upgrader Sealed Secrets
 	$(RUN) playbooks/sealed-secrets.yml $(FLAGS)
 
-monitoring:
+monitoring: ## Installer/upgrader Prometheus + Grafana
 	$(RUN) playbooks/monitoring.yml $(FLAGS)
 
-check-monitoring:
+check-monitoring: ## Dry-run monitoring
 	$(RUN) playbooks/monitoring.yml --check --diff $(FLAGS)
 
-loki:
+loki: ## Installer/upgrader Loki + Promtail
 	$(RUN) playbooks/loki.yml $(FLAGS)
 
-check-loki:
+check-loki: ## Dry-run loki
 	$(RUN) playbooks/loki.yml --check --diff $(FLAGS)
 
-vault-view:
+vault-view: ## Voir le vault Ansible
 	ansible-vault view inventory/group_vars/all/vault.yml
 
-vault-edit:
+vault-edit: ## Editer le vault Ansible
 	ansible-vault edit inventory/group_vars/all/vault.yml
 
-reset:
+reset: ## Reset complet du VPS
 	$(RUN) playbooks/reset.yml $(FLAGS)
 
-all:
+all: ## Lancer tous les playbooks
 	@for pb in $(PLAYBOOKS); do $(RUN) $$pb $(FLAGS); done
 
-check:
+check: ## Dry-run tous les playbooks
 	@for pb in $(PLAYBOOKS); do $(RUN) $$pb --check --diff $(FLAGS); done

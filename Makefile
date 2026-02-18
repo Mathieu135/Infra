@@ -1,16 +1,23 @@
 VPS = vps
 
-.PHONY: tunnel ssh ensure-tunnel pf-argocd pf-grafana pf-all pf-ls pf-stop pf-down _pf-gen _pf-stop kubeseal
+.PHONY: help tunnel ssh ensure-tunnel pf-argocd pf-grafana pf-all pf-ls pf-stop pf-down _pf-gen _pf-stop kubeseal
+
+help: ## Affiche cette aide
+	@printf "\033[1m%-20s %s\033[0m\n" "TARGET" "DESCRIPTION"
+	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | grep -v '^_' | sort | awk -F ':.*## ' '{ printf "  %-18s %s\n", $$1, $$2 }'
+	@echo ""
+	@echo "Ansible (délégués) :"
+	@$(MAKE) -C ansible --no-print-directory help 2>/dev/null || echo "  monitoring, loki, ... → cd ansible && make <target>"
 
 # Déléguer les targets inconnus au Makefile ansible
 %:
 	$(MAKE) -C ansible $@
 
-tunnel:
+tunnel: ## Tunnel SSH vers kubectl
 	@echo "Tunnel SSH → kubectl sur 127.0.0.1:26443"
 	ssh -N -L 26443:127.0.0.1:6443 $(VPS)
 
-ssh:
+ssh: ## SSH vers le VPS
 	ssh $(VPS)
 
 ensure-tunnel:
@@ -101,7 +108,7 @@ _pf-stop:
 		rm $(PF_PID_DIR)/$(NAME); \
 	fi
 
-kubeseal:
+kubeseal: ## Scelle un secret : make kubeseal IN=... OUT=...
 	@test -n "$(IN)" || (echo "Usage: make kubeseal IN=/tmp/secret.yaml OUT=kubernetes/apps/mon-app/sealed-secret.yaml" && exit 1)
 	@test -n "$(OUT)" || (echo "Usage: make kubeseal IN=/tmp/secret.yaml OUT=kubernetes/apps/mon-app/sealed-secret.yaml" && exit 1)
 	ssh -f -N -L 26443:127.0.0.1:6443 $(VPS) -o ExitOnForwardFailure=yes
