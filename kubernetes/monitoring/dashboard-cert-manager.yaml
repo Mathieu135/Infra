@@ -1,0 +1,195 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-cert-manager
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  cert-manager.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Certificates Ready",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "count(certmanager_certificate_ready_status{condition=\"True\"} == 1)",
+              "legendFormat": "Ready",
+              "editorMode": "code",
+              "instant": true,
+              "range": false,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Certificates Not Ready",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background",
+            "graphMode": "none"
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "count(certmanager_certificate_ready_status{condition=\"True\"} == 0) OR on() vector(0)",
+              "legendFormat": "Not Ready",
+              "editorMode": "code",
+              "instant": true,
+              "range": false,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Time to Expiry",
+          "type": "table",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "d",
+              "decimals": 1,
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "orange", "value": 7 },
+                  { "color": "yellow", "value": 21 },
+                  { "color": "green", "value": 30 }
+                ]
+              },
+              "custom": { "displayMode": "color-background" }
+            },
+            "overrides": []
+          },
+          "options": {
+            "sortBy": [{ "displayName": "Value", "desc": false }]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": { "Time": true },
+                "renameByName": { "name": "Certificate", "namespace": "Namespace", "Value": "Days to Expiry" }
+              }
+            }
+          ],
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "(certmanager_certificate_expiration_timestamp_seconds - time()) / 86400",
+              "legendFormat": "",
+              "editorMode": "code",
+              "instant": true,
+              "range": false,
+              "format": "table",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Certificate Expiry Timeline",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "line", "fillOpacity": 10 },
+              "unit": "d",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "orange", "value": 7 },
+                  { "color": "green", "value": 21 }
+                ]
+              },
+              "color": { "mode": "palette-classic" }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "(certmanager_certificate_expiration_timestamp_seconds - time()) / 86400",
+              "legendFormat": "{{ name }}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "Renewal Errors",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "bars", "fillOpacity": 50 },
+              "color": { "fixedColor": "red", "mode": "fixed" }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "rate(certmanager_http_acme_client_request_count{status!=\"200\"}[5m])",
+              "legendFormat": "{{ status }} {{ method }}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "templating": { "list": [] },
+      "time": { "from": "now-24h", "to": "now" },
+      "title": "cert-manager",
+      "uid": "cert-manager"
+    }

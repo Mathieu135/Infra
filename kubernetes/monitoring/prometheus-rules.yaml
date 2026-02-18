@@ -54,3 +54,38 @@ spec:
           annotations:
             summary: "High p95 latency in {{ $labels.namespace }}"
             description: "p95 latency is above 2s in namespace {{ $labels.namespace }}."
+
+    - name: cert-manager-alerts
+      rules:
+        - alert: CertificateExpiringSoon
+          expr: >
+            (certmanager_certificate_expiration_timestamp_seconds - time()) < 21 * 24 * 3600
+            and
+            certmanager_certificate_expiration_timestamp_seconds > 0
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.name }} in {{ $labels.namespace }} expires in less than 21 days"
+            description: "Certificate {{ $labels.name }} expires in {{ $value | humanizeDuration }}."
+
+        - alert: CertificateExpiryCritical
+          expr: >
+            (certmanager_certificate_expiration_timestamp_seconds - time()) < 7 * 24 * 3600
+            and
+            certmanager_certificate_expiration_timestamp_seconds > 0
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.name }} in {{ $labels.namespace }} expires in less than 7 days"
+            description: "Certificate {{ $labels.name }} expires in {{ $value | humanizeDuration }}. Immediate action required."
+
+        - alert: CertificateNotReady
+          expr: certmanager_certificate_ready_status{condition="True"} == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.name }} in {{ $labels.namespace }} is not ready"
+            description: "Certificate {{ $labels.name }} has been in a not-ready state for more than 15 minutes."

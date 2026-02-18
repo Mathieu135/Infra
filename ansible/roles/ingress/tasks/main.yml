@@ -69,9 +69,21 @@
     --repo https://charts.jetstack.io
     --namespace cert-manager --create-namespace
     --set crds.enabled=true
+    --set prometheus.servicemonitor.enabled=true
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: certmanager_status.rc != 0
+
+- name: Upgrader cert-manager
+  command: >
+    helm upgrade cert-manager cert-manager
+    --repo https://charts.jetstack.io
+    --namespace cert-manager
+    --set crds.enabled=true
+    --set prometheus.servicemonitor.enabled=true
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  when: certmanager_status.rc == 0
 
 - name: Attendre que cert-manager soit prêt
   command: kubectl -n cert-manager rollout status deployment/cert-manager --timeout=120s

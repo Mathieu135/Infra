@@ -6,3 +6,4 @@ resources:
   - dashboard-fleet-overview.yaml
   - service-monitor-generic.yaml
   - prometheus-rules.yaml
+  - dashboard-cert-manager.yaml
