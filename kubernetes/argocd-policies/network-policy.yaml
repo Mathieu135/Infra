@@ -49,7 +49,7 @@ spec:
     - to:
         - podSelector: {}
 ---
-# Allow all pods to reach K8s API server
+# Allow all pods to reach K8s API server (k3s DNATs ClusterIP:443 → node:6443)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -60,12 +60,9 @@ spec:
   policyTypes:
     - Egress
   egress:
-    - to:
-        - ipBlock:
-            cidr: 10.43.0.1/32
-      ports:
+    - ports:
         - protocol: TCP
-          port: 443
+          port: 6443
 ---
 # Allow repo-server to reach GitHub (SSH + HTTPS for git clone)
 apiVersion: networking.k8s.io/v1
