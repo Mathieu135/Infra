@@ -99,9 +99,9 @@ data:
           {
             "current": {},
             "datasource": { "type": "loki", "uid": "loki" },
-            "definition": "label_values({job=~\".+\"}, namespace)",
+            "definition": "label_values(namespace)",
             "name": "namespace",
-            "query": { "qryType": 1, "query": "label_values({job=~\".+\"}, namespace)" },
+            "query": "label_values(namespace)",
             "refresh": 2,
             "type": "query"
           }
