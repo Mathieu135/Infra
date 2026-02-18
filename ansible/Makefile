@@ -45,6 +45,12 @@ loki:
 check-loki:
 	$(RUN) playbooks/loki.yml --check --diff $(FLAGS)
 
+vault-view:
+	ansible-vault view inventory/group_vars/all/vault.yml
+
+vault-edit:
+	ansible-vault edit inventory/group_vars/all/vault.yml
+
 reset:
 	$(RUN) playbooks/reset.yml $(FLAGS)
 

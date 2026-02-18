@@ -39,37 +39,11 @@
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   changed_when: false
 
-# --- Ingress (TLS terminé ici, HTTP vers le pod) ---
-- name: Appliquer l'Ingress ArgoCD
-  command: kubectl apply -f -
+# --- Supprimer l'Ingress (accès via port-forward uniquement) ---
+- name: Supprimer l'Ingress ArgoCD
+  command: kubectl delete ingress argocd-server -n argocd --ignore-not-found
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
-  args:
-    stdin: |
-      apiVersion: networking.k8s.io/v1
-      kind: Ingress
-      metadata:
-        name: argocd-server
-        namespace: argocd
-        annotations:
-          cert-manager.io/cluster-issuer: letsencrypt-prod
-      spec:
-        ingressClassName: nginx
-        tls:
-          - hosts:
-              - argocd.{{ domain }}
-            secretName: argocd-tls
-        rules:
-          - host: argocd.{{ domain }}
-            http:
-              paths:
-                - path: /
-                  pathType: Prefix
-                  backend:
-                    service:
-                      name: argocd-server
-                      port:
-                        number: 80
 
 # --- Afficher le mot de passe admin ---
 - name: Récupérer le mot de passe admin initial

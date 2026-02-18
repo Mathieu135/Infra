@@ -57,34 +57,8 @@
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   changed_when: false
 
-# --- Ingress Grafana (TLS terminé ici, HTTP vers le pod) ---
-- name: Appliquer l'Ingress Grafana
-  command: kubectl apply -f -
+# --- Supprimer l'Ingress Grafana (accès via port-forward uniquement) ---
+- name: Supprimer l'Ingress Grafana
+  command: kubectl delete ingress grafana -n monitoring --ignore-not-found
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
-  args:
-    stdin: |
-      apiVersion: networking.k8s.io/v1
-      kind: Ingress
-      metadata:
-        name: grafana
-        namespace: monitoring
-        annotations:
-          cert-manager.io/cluster-issuer: letsencrypt-prod
-      spec:
-        ingressClassName: nginx
-        tls:
-          - hosts:
-              - grafana.{{ domain }}
-            secretName: grafana-tls
-        rules:
-          - host: grafana.{{ domain }}
-            http:
-              paths:
-                - path: /
-                  pathType: Prefix
-                  backend:
-                    service:
-                      name: monitoring-grafana
-                      port:
-                        number: 80

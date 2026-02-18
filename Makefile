@@ -1,11 +1,24 @@
 VPS = vps
 
+# Déléguer les targets inconnus au Makefile ansible
+%:
+	$(MAKE) -C ansible $@
+
 tunnel:
 	@echo "Tunnel SSH → kubectl sur 127.0.0.1:26443"
 	ssh -N -L 26443:127.0.0.1:6443 $(VPS)
 
 ssh:
 	ssh $(VPS)
+
+ensure-tunnel:
+	@lsof -ti:26443 >/dev/null 2>&1 || (echo "Ouverture du tunnel SSH..." && ssh -f -N -L 26443:127.0.0.1:6443 $(VPS) -o ExitOnForwardFailure=yes)
+
+pf-argocd: ensure-tunnel
+	kubectl port-forward svc/argocd-server -n argocd 8080:80
+
+pf-grafana: ensure-tunnel
+	kubectl port-forward svc/monitoring-grafana -n monitoring 3000:80
 
 kubeseal:
 	@test -n "$(IN)" || (echo "Usage: make kubeseal IN=/tmp/secret.yaml OUT=kubernetes/apps/mon-app/sealed-secret.yaml" && exit 1)

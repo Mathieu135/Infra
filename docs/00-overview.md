@@ -50,9 +50,19 @@ Registrar : **Cloudflare** — DNS géré par Cloudflare.
 
 ```
 matltz.dev                → portfolio + blog
-argocd.matltz.dev         → UI ArgoCD
 registry.matltz.dev       → Docker Registry + UI (auth basic)
-grafana.matltz.dev        → Dashboards monitoring
+```
+
+### Accès internes (port-forward)
+
+```bash
+# ArgoCD
+kubectl port-forward svc/argocd-server -n argocd 8080:80
+# → http://localhost:8080
+
+# Grafana
+kubectl port-forward svc/monitoring-grafana -n monitoring 3000:80
+# → http://localhost:3000
 ```
 
 ## Structure du repo
