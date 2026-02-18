@@ -1,5 +1,5 @@
 INVENTORY = inventory/hosts.yml
-PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml playbooks/sealed-secrets.yml playbooks/monitoring.yml playbooks/loki.yml
+PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml playbooks/monitoring.yml playbooks/loki.yml
 FLAGS =
 RUN = ansible-playbook -i $(INVENTORY)
 
@@ -33,9 +33,6 @@ registry-ui: ## Installer/upgrader la registry UI
 
 argocd: ## Installer/upgrader ArgoCD
 	$(RUN) playbooks/argocd.yml $(FLAGS)
-
-sealed-secrets: ## Installer/upgrader Sealed Secrets
-	$(RUN) playbooks/sealed-secrets.yml $(FLAGS)
 
 monitoring: ## Installer/upgrader Prometheus + Grafana
 	$(RUN) playbooks/monitoring.yml $(FLAGS)

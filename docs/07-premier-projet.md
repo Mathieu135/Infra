@@ -27,7 +27,8 @@ git push → GitHub Actions (build frontend + backend en parallèle) → push re
   - `service-backend.yaml` — port 3001 (interne uniquement)
   - `ingress.yaml` — `matltz.dev` avec TLS Let's Encrypt
   - `pvc.yaml` — 1Gi data (SQLite) + 2Gi uploads
-  - `sealed-secret.yaml` — JWT_SECRET chiffré
+  - `secrets.enc.yaml` — JWT_SECRET chiffré avec SOPS + age
+  - `ksops-generator.yaml` — générateur KSOPS pour déchiffrement ArgoCD
   - `kustomization.yaml`
 - [x] **Application ArgoCD** dans `kubernetes/argocd/apps/portfolio.yaml`
 

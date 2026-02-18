@@ -66,7 +66,6 @@ ansible/
 │   ├── registry.yml                    ← Docker Registry (Helm)
 │   ├── registry-ui.yml                 ← UI web du registry
 │   ├── argocd.yml                      ← ArgoCD (Helm)
-│   ├── sealed-secrets.yml              ← Sealed Secrets (Helm)
 │   └── reset.yml                       ← Désinstaller k3s (danger)
 └── roles/
     ├── common/tasks/main.yml           ← apt update, install paquets
@@ -75,8 +74,7 @@ ansible/
     ├── ingress/tasks/main.yml          ← Ingress NGINX, cert-manager, ClusterIssuer
     ├── registry/tasks/main.yml         ← Docker Registry Helm + Ingress basic-auth
     ├── registry-ui/tasks/main.yml      ← Registry UI Helm
-    ├── argocd/tasks/main.yml           ← ArgoCD Helm
-    └── sealed-secrets/tasks/main.yml   ← Sealed Secrets Helm
+    └── argocd/tasks/main.yml           ← ArgoCD Helm
 ```
 
 ### Commandes courantes
@@ -96,7 +94,6 @@ make k3s
 # Installer un composant spécifique
 make registry
 make argocd
-make sealed-secrets
 
 # Dry-run (voir ce qui changerait sans appliquer)
 make check-bootstrap
@@ -190,7 +187,7 @@ VPS (91.134.142.175)
 | **Ingress** | Routing HTTP externe (host/path → service) | `ingress.yaml` (matltz.dev → frontend) |
 | **Namespace** | Isolation logique des resources | `portfolio`, `registry`, `argocd` |
 | **PVC** | Stockage persistant pour les pods | `pvc.yaml` (1Gi pour SQLite) |
-| **Secret** | Données sensibles (mots de passe, tokens) | `sealed-secret.yaml` |
+| **Secret** | Données sensibles (mots de passe, tokens) | `secrets.enc.yaml` |
 | **CronJob** | Tâche planifiée | `cleanup-cronjob.yaml` (dimanche 3h) |
 | **ConfigMap** | Configuration non-sensible | Config du registry |
 
@@ -312,4 +309,4 @@ curl -sfL https://get.k3s.io | K3S_URL=https://91.134.142.175:6443 K3S_TOKEN=<to
 | Upgrader un composant Helm | Ansible | Occasionnel |
 | Déployer une app | ArgoCD (GitOps) | À chaque push |
 | Scaler, debug, logs | kubectl | Ad hoc |
-| Gérer les secrets | kubeseal + kubectl | Quand nécessaire |
+| Gérer les secrets | sops | Quand nécessaire |

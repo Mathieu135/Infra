@@ -23,7 +23,7 @@
 | TLS | cert-manager + Let's Encrypt | HTTPS automatique |
 | Registry | Docker Registry self-hosted | Stockage des images Docker |
 | Secrets Ansible | Ansible Vault | Variables sensibles chiffrées |
-| Secrets K8s | Sealed Secrets | Secrets chiffrés dans Git |
+| Secrets K8s | SOPS + age | Secrets chiffrés dans Git (KSOPS) |
 | Monitoring | Prometheus + Grafana | Métriques et dashboards |
 | CI | GitHub Actions | Build et push des images |
 
@@ -76,7 +76,6 @@ ansible/
 ├── playbooks/                          ← Point d'entrée par composant
 │   ├── bootstrap.yml                   ← Packages de base, sécurité, UFW
 │   ├── k3s.yml                         ← Install k3s
-│   ├── sealed-secrets.yml              ← Install Sealed Secrets (Helm)
 │   ├── registry.yml                    ← Docker Registry (Helm + Ingress)
 │   ├── registry-ui.yml                 ← UI pour le registry
 │   └── argocd.yml                      ← ArgoCD (Helm)
@@ -102,7 +101,8 @@ kubernetes/
 │       ├── service-*.yaml          ← Services internes
 │       ├── ingress.yaml            ← Routing externe (TLS)
 │       ├── pvc.yaml                ← Stockage persistant
-│       └── sealed-secret.yaml      ← Secrets chiffrés
+│       ├── secrets.enc.yaml        ← Secrets chiffrés (SOPS/age)
+│       └── ksops-generator.yaml    ← Générateur KSOPS pour Kustomize
 ├── argocd/apps/                    ← Applications ArgoCD
 │   ├── portfolio.yaml              ← Pointe vers kubernetes/apps/portfolio
 │   └── registry-maintenance.yaml   ← Pointe vers kubernetes/registry
@@ -133,7 +133,7 @@ Ansible pose l'infra, ensuite tout passe par Git + ArgoCD.
 3. [cert-manager + Let's Encrypt](03-cert-manager.md)
 4. [Docker Registry](04-registry.md)
 5. [ArgoCD](05-argocd.md)
-6. [Sealed Secrets](06-sealed-secrets.md)
+6. [SOPS + age (KSOPS)](10-secrets.md)
 7. [Premier projet test](07-premier-projet.md)
 8. [Monitoring](08-monitoring.md)
 9. [Onboarder un projet](09-onboarding-projet.md)
