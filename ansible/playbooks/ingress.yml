@@ -1,0 +1,4 @@
+- name: Installer/upgrader Ingress NGINX + cert-manager
+  hosts: vps
+  roles:
+    - ingress

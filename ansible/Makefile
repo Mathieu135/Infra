@@ -1,5 +1,5 @@
 INVENTORY = inventory/hosts.yml
-PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml playbooks/monitoring.yml playbooks/loki.yml
+PLAYBOOKS = playbooks/bootstrap.yml playbooks/k3s.yml playbooks/ingress.yml playbooks/registry.yml playbooks/registry-ui.yml playbooks/argocd.yml playbooks/monitoring.yml playbooks/loki.yml
 FLAGS =
 RUN = ansible-playbook -i $(INVENTORY)
 
@@ -39,6 +39,12 @@ monitoring: ## Installer/upgrader Prometheus + Grafana
 
 check-monitoring: ## Dry-run monitoring
 	$(RUN) playbooks/monitoring.yml --check --diff $(FLAGS)
+
+ingress: ## Installer/upgrader Ingress NGINX + cert-manager
+	$(RUN) playbooks/ingress.yml $(FLAGS)
+
+check-ingress: ## Dry-run ingress
+	$(RUN) playbooks/ingress.yml --check --diff $(FLAGS)
 
 loki: ## Installer/upgrader Loki + Promtail
 	$(RUN) playbooks/loki.yml $(FLAGS)
