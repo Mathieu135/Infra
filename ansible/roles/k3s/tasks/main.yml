@@ -5,7 +5,7 @@
   register: k3s_binary
 
 - name: Installer k3s
-  shell: curl -sfL https://get.k3s.io | sh -s - --disable traefik
+  shell: curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} sh -s - --disable traefik
   when: not k3s_binary.stat.exists
   become: yes
 
