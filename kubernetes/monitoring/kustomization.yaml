@@ -8,3 +8,4 @@ resources:
   - prometheus-rules.yaml
   - dashboard-cert-manager.yaml
   - dashboard-ingress-nginx.yaml
+  - network-policy.yaml
