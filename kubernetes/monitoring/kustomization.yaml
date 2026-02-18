@@ -7,3 +7,4 @@ resources:
   - service-monitor-generic.yaml
   - prometheus-rules.yaml
   - dashboard-cert-manager.yaml
+  - dashboard-ingress-nginx.yaml
