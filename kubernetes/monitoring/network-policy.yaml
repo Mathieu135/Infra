@@ -1,37 +1,17 @@
-# Default deny all traffic in monitoring namespace
+# Default deny ingress in monitoring namespace (egress unrestricted — Prometheus
+# needs to scrape all namespaces, operator/kube-state-metrics need K8s API,
+# and ClusterIP cannot be reliably targeted by NetworkPolicy on k3s)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny
+  name: default-deny-ingress
   namespace: monitoring
 spec:
   podSelector: {}
   policyTypes:
     - Ingress
-    - Egress
 ---
-# Allow DNS resolution for all pods
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-dns
-  namespace: monitoring
-spec:
-  podSelector: {}
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
----
-# Allow all intra-namespace communication (monitoring components are heavily interconnected)
+# Allow intra-namespace communication
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -41,41 +21,6 @@ spec:
   podSelector: {}
   policyTypes:
     - Ingress
-    - Egress
   ingress:
     - from:
         - podSelector: {}
-  egress:
-    - to:
-        - podSelector: {}
----
-# Allow Prometheus to scrape targets in any namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-prometheus-egress
-  namespace: monitoring
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: prometheus
-  policyTypes:
-    - Egress
-  egress:
-    - {}
----
-# Allow pods to reach K8s API (operator, kube-state-metrics, promtail need it)
-# k3s DNATs ClusterIP:443 → node:6443 before NetworkPolicy evaluation
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-kube-api-egress
-  namespace: monitoring
-spec:
-  podSelector: {}
-  policyTypes:
-    - Egress
-  egress:
-    - ports:
-        - protocol: TCP
-          port: 6443

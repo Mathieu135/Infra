@@ -1,37 +1,16 @@
-# Default deny all traffic in argocd namespace
+# Default deny ingress in argocd namespace (egress unrestricted — K8s API ClusterIP
+# cannot be reliably targeted by NetworkPolicy on k3s)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: default-deny
+  name: default-deny-ingress
   namespace: argocd
 spec:
   podSelector: {}
   policyTypes:
     - Ingress
-    - Egress
 ---
-# Allow DNS resolution for all pods
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-dns
-  namespace: argocd
-spec:
-  podSelector: {}
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
----
-# Allow all intra-namespace communication (server, controller, repo-server, redis, dex)
+# Allow intra-namespace communication
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -41,44 +20,6 @@ spec:
   podSelector: {}
   policyTypes:
     - Ingress
-    - Egress
   ingress:
     - from:
         - podSelector: {}
-  egress:
-    - to:
-        - podSelector: {}
----
-# Allow all pods to reach K8s API server (k3s DNATs ClusterIP:443 → node:6443)
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-kube-api-egress
-  namespace: argocd
-spec:
-  podSelector: {}
-  policyTypes:
-    - Egress
-  egress:
-    - ports:
-        - protocol: TCP
-          port: 6443
----
-# Allow repo-server to reach GitHub (SSH + HTTPS for git clone)
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-repo-server-github
-  namespace: argocd
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-repo-server
-  policyTypes:
-    - Egress
-  egress:
-    - ports:
-        - protocol: TCP
-          port: 22
-        - protocol: TCP
-          port: 443
