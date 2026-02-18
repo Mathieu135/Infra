@@ -15,9 +15,34 @@ data:
       "links": [],
       "panels": [
         {
+          "title": "Log Volume by Container",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "drawStyle": "bars", "fillOpacity": 50, "stacking": { "mode": "normal" } },
+              "unit": "short",
+              "color": { "mode": "palette-classic" }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "sum by (container) (count_over_time({namespace=\"$namespace\", container=~\"$container\"}[1m]))",
+              "legendFormat": "{{container}}",
+              "editorMode": "code",
+              "range": true,
+              "instant": false,
+              "refId": "A"
+            }
+          ]
+        },
+        {
           "title": "Log Volume by Level",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
           "datasource": { "type": "loki", "uid": "loki" },
           "fieldConfig": {
             "defaults": {
@@ -42,7 +67,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "sum by (level) (count_over_time({namespace=\"$namespace\", level=~\".+\"}[1m]))",
+              "expr": "sum by (level) (count_over_time({namespace=\"$namespace\", container=~\"$container\", level=~\".+\"}[1m]))",
               "legendFormat": "{{level}}",
               "editorMode": "code",
               "range": true,
@@ -54,7 +79,7 @@ data:
         {
           "title": "Logs",
           "type": "logs",
-          "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 },
+          "gridPos": { "h": 16, "w": 24, "x": 0, "y": 14 },
           "datasource": { "type": "loki", "uid": "loki" },
           "options": {
             "showTime": true,
@@ -68,7 +93,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "{namespace=\"$namespace\"}",
+              "expr": "{namespace=\"$namespace\", container=~\"$container\"}",
               "refId": "A"
             }
           ]
@@ -76,7 +101,7 @@ data:
         {
           "title": "Errors Only",
           "type": "logs",
-          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 30 },
           "datasource": { "type": "loki", "uid": "loki" },
           "options": {
             "showTime": true,
@@ -90,7 +115,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "loki" },
-              "expr": "{namespace=\"$namespace\", level=\"error\"}",
+              "expr": "{namespace=\"$namespace\", container=~\"$container\", level=\"error\"}",
               "refId": "A"
             }
           ]
@@ -107,6 +132,18 @@ data:
             "query": "label_values(namespace)",
             "refresh": 2,
             "type": "query"
+          },
+          {
+            "current": {},
+            "datasource": { "type": "loki", "uid": "loki" },
+            "definition": "label_values({namespace=\"$namespace\"}, container)",
+            "name": "container",
+            "query": "label_values({namespace=\"$namespace\"}, container)",
+            "refresh": 2,
+            "type": "query",
+            "includeAll": true,
+            "allValue": ".+",
+            "multi": true
           }
         ]
       },
