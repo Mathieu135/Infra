@@ -19,7 +19,7 @@ spec:
         - name: registry-credentials
       containers:
         - name: backend
-          image: registry.matltz.dev/portfolio-backend:46fdcb3ed574145d9632c2b4228ab9f2b397d419
+          image: registry.matltz.dev/portfolio-backend:bc819016263efcfc7fcd587de21820d7282d711c
           ports:
             - containerPort: 3001
           env:
