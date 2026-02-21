@@ -23,6 +23,7 @@
 | TLS | cert-manager + Let's Encrypt | HTTPS automatique |
 | Registry | Docker Registry self-hosted | Stockage des images Docker |
 | Secrets Ansible | Ansible Vault | Variables sensibles chiffrées |
+| Database | PostgreSQL 16 | Base de données applicative (StatefulSet) |
 | Secrets K8s | SOPS + age | Secrets chiffrés dans Git (KSOPS) |
 | Monitoring | Prometheus + Grafana | Métriques et dashboards |
 | Logs | Loki + Promtail | Collecte et query des logs |
@@ -100,9 +101,12 @@ kubernetes/
 │   └── portfolio/
 │       ├── kustomization.yaml      ← Liste des resources
 │       ├── deployment-*.yaml       ← Pods frontend/backend
-│       ├── service-*.yaml          ← Services internes
-│       ├── ingress.yaml            ← Routing externe (TLS)
-│       ├── pvc.yaml                ← Stockage persistant
+│       ├── statefulset-postgres.yaml ← PostgreSQL 16 (PVC 1Gi)
+│       ├── service-*.yaml          ← Services internes + headless postgres
+│       ├── ingress.yaml            ← Routing externe (TLS + rate limiting)
+│       ├── pvc.yaml                ← Stockage persistant (uploads, backups)
+│       ├── cronjob-pg-backup.yaml  ← Backup quotidien pg_dump (rétention 7j)
+│       ├── prometheusrule-auth.yaml ← Alerte 401/403
 │       ├── network-policy.yaml     ← NetworkPolicies (isolation réseau)
 │       ├── secrets.enc.yaml        ← Secrets chiffrés (SOPS/age)
 │       └── ksops-generator.yaml    ← Générateur KSOPS pour Kustomize

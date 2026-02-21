@@ -1,3 +1,4 @@
 ansible/.vault_password
 traefik/
 .pf-pids/
+.DS_Store

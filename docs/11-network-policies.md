@@ -37,11 +37,11 @@ Policies types :
 ### portfolio
 
 ```
-Internet → ingress-nginx → frontend:80 → backend:3001
-                                          ↑ Prometheus scrape (monitoring ns)
+Internet → ingress-nginx → frontend:8080 → backend:3001 → postgres:5432
+                                            ↑ Prometheus scrape       ↑ backup cronjob
 ```
 
-5 policies : default-deny, allow-dns, allow-ingress-to-frontend, allow-ingress-to-backend, allow-frontend-to-backend.
+8 policies : default-deny, allow-dns, allow-ingress-to-frontend, allow-ingress-to-backend, allow-frontend-to-backend, allow-backend-to-postgres, allow-ingress-to-postgres, allow-backup-to-postgres.
 
 ### registry
 
@@ -56,7 +56,7 @@ Internet → ingress-nginx → registry-ui:80 → docker-registry:5000
 
 Egress libre (Prometheus scrape cross-namespace, operator/kube-state-metrics → K8s API).
 
-2 policies : default-deny-ingress, allow-intra-namespace.
+3 policies : default-deny-ingress, allow-intra-namespace, restrict-loki-ingress (seuls les pods du namespace monitoring accèdent à Loki:3100).
 
 ### argocd
 

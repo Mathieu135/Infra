@@ -80,8 +80,9 @@ Des règles d'alerte sont définies dans `kubernetes/monitoring/prometheus-rules
 | **HighErrorRate** | > 5% de 5xx pendant 5 min | warning |
 | **PodNotReady** | Pod not ready > 5 min | warning |
 | **HighLatency** | p95 > 2s pendant 5 min | warning |
+| **HighAuthFailureRate** | > 20 req/s en 401/403 pendant 5 min | warning |
 
-Ces alertes s'appliquent automatiquement à toutes les apps instrumentées.
+Les alertes génériques sont dans `kubernetes/monitoring/prometheus-rules.yaml`. L'alerte auth est dans `kubernetes/apps/portfolio/prometheusrule-auth.yaml` (namespace portfolio, détectée automatiquement grâce à `ruleSelectorNilUsesHelmValues=false`).
 
 ## Dashboards
 
