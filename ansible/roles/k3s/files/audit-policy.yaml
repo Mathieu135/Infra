@@ -1,0 +1,62 @@
+apiVersion: audit.k8s.io/v1
+kind: Policy
+rules:
+  # Ne pas logger les checks de sante et readiness
+  - level: None
+    resources:
+      - group: ""
+        resources: ["endpoints", "services", "services/status"]
+    users: ["system:kube-proxy"]
+
+  # Ne pas logger les events
+  - level: None
+    resources:
+      - group: ""
+        resources: ["events"]
+
+  # Ne pas logger les requetes aux endpoints non-resource (healthz, readyz, livez)
+  - level: None
+    nonResourceURLs:
+      - "/healthz*"
+      - "/readyz*"
+      - "/livez*"
+      - "/api"
+      - "/api/*"
+      - "/version"
+
+  # Ne pas logger les lectures/watches du system
+  - level: None
+    users:
+      - "system:apiserver"
+      - "system:kube-scheduler"
+      - "system:kube-controller-manager"
+      - "system:node:*"
+    verbs: ["get", "watch", "list"]
+
+  # Logger les operations sur les secrets (metadata uniquement, pas le contenu)
+  - level: Metadata
+    resources:
+      - group: ""
+        resources: ["secrets"]
+
+  # Logger les modifications d'authentification et autorisation
+  - level: RequestResponse
+    resources:
+      - group: "rbac.authorization.k8s.io"
+        resources: ["clusterroles", "clusterrolebindings", "roles", "rolebindings"]
+
+  # Logger les modifications sur les objets importants
+  - level: Request
+    verbs: ["create", "update", "patch", "delete", "deletecollection"]
+    resources:
+      - group: ""
+        resources: ["pods", "services", "configmaps", "persistentvolumeclaims", "namespaces", "serviceaccounts"]
+      - group: "apps"
+        resources: ["deployments", "statefulsets", "daemonsets"]
+      - group: "networking.k8s.io"
+        resources: ["ingresses", "networkpolicies"]
+
+  # Logger les metadata pour tout le reste
+  - level: Metadata
+    omitStages:
+      - "RequestReceived"

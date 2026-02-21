@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: portfolio-pg-backup
+  namespace: portfolio
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: portfolio-pg-backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-backup
+              image: postgres:16-alpine
+              envFrom:
+                - secretRef:
+                    name: portfolio-secrets
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  BACKUP_FILE="/backups/portfolio-$(date +%Y%m%d-%H%M%S).sql.gz"
+                  pg_dump "$DATABASE_URL" | gzip > "$BACKUP_FILE"
+                  echo "Backup created: $BACKUP_FILE"
+                  # Retain only last 7 days
+                  find /backups -name "portfolio-*.sql.gz" -mtime +7 -delete
+                  echo "Old backups cleaned up"
+                  ls -lh /backups/
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "128Mi"
+                  cpu: "200m"
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: portfolio-backups

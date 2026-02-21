@@ -5,9 +5,52 @@
   register: k3s_binary
 
 - name: Installer k3s
-  shell: curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} sh -s - --disable traefik
+  shell: curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} sh -s - --disable traefik --secrets-encryption
   when: not k3s_binary.stat.exists
   become: yes
+
+# --- Audit logging ---
+- name: Créer le dossier pour la policy d'audit
+  file:
+    path: /etc/k3s
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Copier la policy d'audit
+  copy:
+    src: audit-policy.yaml
+    dest: /etc/k3s/audit-policy.yaml
+    mode: '0644'
+  become: yes
+
+- name: Créer le dossier de logs d'audit
+  file:
+    path: /var/log/kubernetes
+    state: directory
+    mode: '0750'
+  become: yes
+
+- name: Configurer l'audit logging k3s
+  copy:
+    dest: /etc/rancher/k3s/config.yaml
+    content: |
+      kube-apiserver-arg:
+        - "audit-log-path=/var/log/kubernetes/audit.log"
+        - "audit-policy-file=/etc/k3s/audit-policy.yaml"
+        - "audit-log-maxage=30"
+        - "audit-log-maxbackup=3"
+        - "audit-log-maxsize=100"
+    mode: '0644'
+  become: yes
+  register: k3s_audit_config
+
+- name: Redémarrer k3s si la config d'audit a changé
+  systemd:
+    name: k3s
+    state: restarted
+  become: yes
+  when: k3s_audit_config.changed
 
 - name: Attendre que k3s soit prêt
   command: kubectl get nodes

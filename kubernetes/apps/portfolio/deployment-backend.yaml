@@ -6,7 +6,10 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: portfolio-backend
@@ -20,6 +23,14 @@ spec:
       containers:
         - name: backend
           image: registry.matltz.dev/portfolio-backend:efcc9087a6c49e523538b7e958eb759da5b19525
+          imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 3001
           env:
@@ -33,10 +44,10 @@ spec:
             - secretRef:
                 name: portfolio-secrets
           volumeMounts:
-            - name: data
-              mountPath: /app/data
             - name: uploads
               mountPath: /app/uploads
+            - name: tmp
+              mountPath: /tmp
           livenessProbe:
             httpGet:
               path: /health
@@ -57,9 +68,8 @@ spec:
               memory: "256Mi"
               cpu: "500m"
       volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: portfolio-data
         - name: uploads
           persistentVolumeClaim:
             claimName: portfolio-uploads
+        - name: tmp
+          emptyDir: {}

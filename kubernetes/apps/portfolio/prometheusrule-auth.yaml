@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: portfolio-auth-alerts
+  namespace: portfolio
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: portfolio-auth
+      rules:
+        - alert: HighAuthFailureRate
+          expr: sum(rate(http_requests_total{namespace="portfolio", status=~"401|403"}[5m])) > 20
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Taux eleve de 401/403 sur le portfolio"
+            description: "Plus de 20 req/s en 401/403 sur les 5 dernieres minutes."

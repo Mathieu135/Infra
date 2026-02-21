@@ -100,3 +100,73 @@ spec:
       ports:
         - protocol: TCP
           port: 3001
+---
+# Allow backend to reach PostgreSQL on port 5432
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-postgres
+  namespace: portfolio
+spec:
+  podSelector:
+    matchLabels:
+      app: portfolio-backend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: portfolio-postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# Allow ingress to PostgreSQL from backend and backup job
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-postgres
+  namespace: portfolio
+spec:
+  podSelector:
+    matchLabels:
+      app: portfolio-postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: portfolio-backend
+      ports:
+        - protocol: TCP
+          port: 5432
+    - from:
+        - podSelector:
+            matchLabels:
+              app: portfolio-pg-backup
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# Allow backup job to reach PostgreSQL on port 5432
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backup-to-postgres
+  namespace: portfolio
+spec:
+  podSelector:
+    matchLabels:
+      app: portfolio-pg-backup
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: portfolio-postgres
+      ports:
+        - protocol: TCP
+          port: 5432

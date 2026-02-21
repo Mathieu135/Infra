@@ -133,6 +133,31 @@
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
   when: promtail_status.rc == 0
 
+# --- NetworkPolicy : restricter l'accès à Loki ---
+- name: Appliquer la NetworkPolicy Loki
+  command: kubectl apply -f -
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+  args:
+    stdin: |
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: restrict-loki-ingress
+        namespace: monitoring
+      spec:
+        podSelector:
+          matchLabels:
+            app.kubernetes.io/name: loki
+        policyTypes:
+          - Ingress
+        ingress:
+          - from:
+              - podSelector: {}
+            ports:
+              - protocol: TCP
+                port: 3100
+
 # --- Datasource Loki pour Grafana ---
 - name: Créer la datasource Loki pour Grafana
   command: kubectl apply -f -
