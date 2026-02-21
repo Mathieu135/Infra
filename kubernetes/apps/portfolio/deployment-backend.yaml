@@ -22,7 +22,7 @@ spec:
         - name: registry-credentials
       containers:
         - name: backend
-          image: registry.matltz.dev/portfolio-backend:36643f43d1a1b2916cfac74678bddd0b52fbf6f2
+          image: registry.matltz.dev/portfolio-backend:f264172a3d32f39e3e049f206ed06c33d02c8e5c
           imagePullPolicy: Always
           securityContext:
             runAsNonRoot: true
