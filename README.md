@@ -46,6 +46,17 @@ make secret-edit APP=<nom>     # Éditer un secret existant
 make secret-view APP=<nom>     # Afficher un secret en clair
 ```
 
+### Port-forwards et VPS
+
+```bash
+make vps           # Afficher les PV et le stockage du VPS
+make pf-argocd     # Port-forward ArgoCD → https://argocd.localhost
+make pf-grafana    # Port-forward Grafana → https://grafana.localhost
+make pf-all        # Lancer tous les port-forwards
+make pf-ls         # Lister les port-forwards actifs
+make pf-down       # Stopper tous les port-forwards
+```
+
 ### Ansible (`cd ansible/`)
 
 ```bash
@@ -90,6 +101,18 @@ make secret-view APP=mon-app     # Afficher un secret en clair
 ```
 
 Voir [docs/10-secrets.md](docs/10-secrets.md) pour le détail du workflow.
+
+## Storage
+
+Les données applicatives sont stockées dans `/opt/k3s-data/` sur le VPS (configuré via le rôle Ansible `k3s`).
+
+Le `local-path-provisioner` de k3s provisionne automatiquement les nouveaux PVCs dans ce répertoire. Les PVCs existants (monitoring, registry) restent dans `/var/lib/rancher/k3s/storage/`.
+
+```bash
+make vps    # Voir les PV et le contenu de /opt/k3s-data/
+```
+
+Le playbook `ansible/playbooks/migrate-pvc.yml` permet de migrer des PVCs existants vers `/opt/k3s-data/` (suspend ArgoCD, backup, supprime/recrée les PVCs, restaure les données).
 
 ## Documentation
 

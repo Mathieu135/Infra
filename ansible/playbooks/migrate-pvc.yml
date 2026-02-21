@@ -1,0 +1,175 @@
+---
+# Migration des PVCs portfolio vers /opt/k3s-data/
+# Usage: ansible-playbook playbooks/migrate-pvc.yml
+#
+# 1. Suspend ArgoCD → scale down → backup données
+# 2. Supprime PVCs → réactive ArgoCD (recrée dans /opt/k3s-data/)
+# 3. Suspend ArgoCD → scale down → restaure données → réactive ArgoCD
+
+- name: Migration PVCs portfolio vers /opt/k3s-data
+  hosts: vps
+  become: yes
+  vars:
+    namespace: portfolio
+    argocd_app: portfolio
+    pvcs:
+      - name: portfolio-data
+        storage: 1Gi
+      - name: portfolio-uploads
+        storage: 2Gi
+
+  tasks:
+    # --- Suspendre ArgoCD ---
+    - name: Suspendre le auto-sync ArgoCD
+      shell: |
+        kubectl patch application {{ argocd_app }} -n argocd \
+          --type merge -p '{"spec":{"syncPolicy":null}}'
+
+    # --- Scale down ---
+    - name: Scale down portfolio-backend
+      command: kubectl scale deployment portfolio-backend -n {{ namespace }} --replicas=0
+
+    - name: Attendre que le pod soit terminé
+      shell: kubectl get pods -n {{ namespace }} -l app=portfolio-backend --no-headers
+      register: pods_check
+      retries: 30
+      delay: 2
+      until: pods_check.stdout == ""
+      changed_when: false
+
+    # --- Récupérer les anciens paths ---
+    - name: Récupérer les paths des PV actuels
+      shell: |
+        kubectl get pv -o json \
+          | python3 -c "
+        import sys, json
+        data = json.load(sys.stdin)
+        for pv in data['items']:
+            ref = pv.get('spec', {}).get('claimRef', {})
+            if ref.get('name') == '{{ item.name }}' and ref.get('namespace') == '{{ namespace }}':
+                hp = pv.get('spec', {}).get('hostPath', {}).get('path', '')
+                lp = pv.get('spec', {}).get('local', {}).get('path', '')
+                print(hp or lp)
+        "
+      loop: "{{ pvcs }}"
+      register: old_paths
+      changed_when: false
+
+    - name: Vérifier que les paths sont trouvés
+      assert:
+        that: item.stdout != ""
+        fail_msg: "Path non trouvé pour {{ item.item.name }} — PVC déjà migré ?"
+      loop: "{{ old_paths.results }}"
+
+    # --- Backup ---
+    - name: Créer le dossier de backup
+      file:
+        path: /opt/k3s-data/migration-backup
+        state: directory
+
+    - name: Copier les données des anciens PV
+      command: cp -a {{ item.stdout }}/. /opt/k3s-data/migration-backup/{{ item.item.name }}
+      loop: "{{ old_paths.results }}"
+
+    # --- Supprimer les PVCs ---
+    - name: Supprimer les PVCs
+      command: kubectl delete pvc {{ item.name }} -n {{ namespace }}
+      loop: "{{ pvcs }}"
+
+    - name: Attendre la suppression des PV
+      shell: |
+        kubectl get pv -o json \
+          | python3 -c "
+        import sys, json
+        data = json.load(sys.stdin)
+        for pv in data['items']:
+            ref = pv.get('spec', {}).get('claimRef', {})
+            if ref.get('name') == '{{ item.name }}' and ref.get('namespace') == '{{ namespace }}':
+                print(pv['metadata']['name'])
+        "
+      loop: "{{ pvcs }}"
+      register: pv_check
+      retries: 30
+      delay: 2
+      until: pv_check.stdout == ""
+      changed_when: false
+
+    # --- Réactiver ArgoCD (recrée PVCs + deployment) ---
+    - name: Réactiver le auto-sync ArgoCD
+      shell: |
+        kubectl patch application {{ argocd_app }} -n argocd \
+          --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true},"syncOptions":["CreateNamespace=true"]}}}'
+
+    - name: Attendre que les PVCs soient Bound
+      command: kubectl get pvc {{ item.name }} -n {{ namespace }} -o jsonpath='{.status.phase}'
+      loop: "{{ pvcs }}"
+      register: pvc_status
+      retries: 30
+      delay: 3
+      until: pvc_status.stdout == "Bound"
+      changed_when: false
+
+    # --- Scale down pour restaurer ---
+    - name: Suspendre ArgoCD pour la restauration
+      shell: |
+        kubectl patch application {{ argocd_app }} -n argocd \
+          --type merge -p '{"spec":{"syncPolicy":null}}'
+
+    - name: Scale down pour restaurer les données
+      command: kubectl scale deployment portfolio-backend -n {{ namespace }} --replicas=0
+
+    - name: Attendre que le pod soit terminé
+      shell: kubectl get pods -n {{ namespace }} -l app=portfolio-backend --no-headers
+      register: pods_check2
+      retries: 30
+      delay: 2
+      until: pods_check2.stdout == ""
+      changed_when: false
+
+    # --- Restaurer les données ---
+    - name: Récupérer les paths des nouveaux PV
+      shell: |
+        kubectl get pv -o json \
+          | python3 -c "
+        import sys, json
+        data = json.load(sys.stdin)
+        for pv in data['items']:
+            ref = pv.get('spec', {}).get('claimRef', {})
+            if ref.get('name') == '{{ item.name }}' and ref.get('namespace') == '{{ namespace }}':
+                hp = pv.get('spec', {}).get('hostPath', {}).get('path', '')
+                lp = pv.get('spec', {}).get('local', {}).get('path', '')
+                print(hp or lp)
+        "
+      loop: "{{ pvcs }}"
+      register: new_paths
+      changed_when: false
+
+    - name: Restaurer les données dans les nouveaux PV
+      command: cp -a /opt/k3s-data/migration-backup/{{ item.item.name }}/. {{ item.stdout }}/
+      loop: "{{ new_paths.results }}"
+      when: item.stdout != ""
+
+    # --- Réactiver ArgoCD (scale up final) ---
+    - name: Réactiver le auto-sync ArgoCD
+      shell: |
+        kubectl patch application {{ argocd_app }} -n argocd \
+          --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true},"syncOptions":["CreateNamespace=true"]}}}'
+
+    - name: Attendre que le pod soit ready
+      shell: |
+        kubectl get pods -n {{ namespace }} -l app=portfolio-backend \
+          -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}'
+      register: pod_ready
+      retries: 60
+      delay: 3
+      until: pod_ready.stdout == "True"
+      changed_when: false
+
+    - name: Nettoyage du backup
+      file:
+        path: /opt/k3s-data/migration-backup
+        state: absent
+
+    - name: Migration terminée
+      debug:
+        msg: "Les PVCs portfolio sont maintenant dans /opt/k3s-data/"

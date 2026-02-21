@@ -43,6 +43,47 @@
     line: 'export KUBECONFIG=~/.kube/config'
     state: present
 
+# --- Storage : /opt/k3s-data ---
+- name: Créer le répertoire de stockage applicatif
+  file:
+    path: /opt/k3s-data
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+
+- name: Copier le ConfigMap local-path-config
+  copy:
+    dest: /tmp/local-path-config.yaml
+    content: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: local-path-config
+        namespace: kube-system
+      data:
+        config.json: |-
+          {
+            "nodePathMap": [
+              {
+                "node": "DEFAULT_PATH_FOR_NON_LISTED_NODES",
+                "paths": ["/opt/k3s-data"]
+              }
+            ]
+          }
+
+- name: Configurer local-path-provisioner vers /opt/k3s-data
+  command: kubectl apply -f /tmp/local-path-config.yaml
+  become: yes
+  register: configmap_result
+  changed_when: "'configured' in configmap_result.stdout"
+
+- name: Redémarrer local-path-provisioner pour appliquer la config
+  command: kubectl delete pod -n kube-system -l app=local-path-provisioner
+  become: yes
+  when: "'configured' in configmap_result.stdout"
+
 # --- Helm ---
 - name: Vérifier si Helm est déjà installé
   stat:
