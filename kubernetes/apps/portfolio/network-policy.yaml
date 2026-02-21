@@ -31,7 +31,7 @@ spec:
         - protocol: TCP
           port: 53
 ---
-# Allow ingress-nginx to reach frontend on port 80
+# Allow ingress-nginx to reach frontend on port 8080
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -50,7 +50,7 @@ spec:
               kubernetes.io/metadata.name: ingress-nginx
       ports:
         - protocol: TCP
-          port: 80
+          port: 8080
 ---
 # Allow frontend (same ns) and Prometheus (monitoring ns) to reach backend on port 3001
 apiVersion: networking.k8s.io/v1
