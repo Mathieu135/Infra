@@ -17,7 +17,7 @@ spec:
         - name: registry-credentials
       containers:
         - name: frontend
-          image: registry.matltz.dev/portfolio-frontend:dfed1e9e8fe11a7f018ecc26c41754e75a4370c5
+          image: registry.matltz.dev/portfolio-frontend:64477f3d8b6782bd1130c8f2a94c2cc0e159577c
           imagePullPolicy: Always
           securityContext:
             runAsNonRoot: true
